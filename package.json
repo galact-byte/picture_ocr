@@ -6,7 +6,7 @@
   "author": "galact",
   "repository": {
     "type": "git",
-    "url": "https://github.com/galact-byte/Web.git"
+    "url": "https://github.com/galact-byte/picture_ocr.git"
   },
   "type": "module",
   "main": "electron/main.cjs",

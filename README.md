@@ -36,7 +36,7 @@ npm run dev
 
 ## 下载与启动
 
-从 [GitHub Releases](https://github.com/galact-byte/Web/releases) 下载所需版本：
+从 [GitHub Releases](https://github.com/galact-byte/picture_ocr/releases) 下载所需版本（v0.9.0 及更早版本位于原仓库 [galact-byte/Web Releases](https://github.com/galact-byte/Web/releases)）：
 
 - **Windows 桌面版**：下载便携版 exe，直接打开即可使用。
 - **Web 版**：下载 `picture-ocr-vX.Y.Z.zip` 并完整解压，双击 `启动测评证据采集工具.bat`，浏览器会自动打开本地页面。使用期间请保持启动窗口打开。

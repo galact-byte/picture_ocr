@@ -1,6 +1,6 @@
 # 构建与发布维护说明
 
-本文面向项目维护者。以下 npm 命令在 `Work/picture_ocr` 项目目录执行；发布工作流位于仓库根目录 `.github/workflows/release-picture-ocr.yml`。
+本文面向项目维护者。以下 npm 命令在仓库根目录执行；发布工作流位于 `.github/workflows/release.yml`。
 
 ## 本地构建
 
@@ -35,9 +35,9 @@ npm run desktop:build
 
 1. 按本次实际变化重写项目根目录的 `RELEASE-NOTES.md`。使用面向用户的说明，不沿用上一版本文案，不以提交标题代替；文件必须非空。
 2. 同步 `package.json`、`package-lock.json` 和 `RELEASE-NOTES.md` 的版本，完成与改动相称的验证。
-3. 提交并推送 main，再创建、推送一致的 `picture-ocr-vX.Y.Z` 标签。不要覆盖已发布标签。
+3. 提交并推送 main，再创建、推送一致的 `vX.Y.Z` 标签。不要覆盖已发布标签。
 
-推送匹配 `picture-ocr-v*` 的标签后，GitHub Actions 自动安装依赖、构建 Web 和 Windows 桌面版，并创建或更新 GitHub Release：
+推送匹配 `v*` 的标签后（v0.9.0 及更早版本以 `picture-ocr-v*` 标签发布在原仓库 galact-byte/Web），GitHub Actions 自动安装依赖、构建 Web 和 Windows 桌面版，并创建或更新 GitHub Release：
 
 - Web ZIP 包含 `dist/`、启动脚本、`README.md`、`RELEASE-NOTES.md` 和 `VERSION.txt`。
 - Windows 附件为桌面便携版 exe。
