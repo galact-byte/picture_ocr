@@ -45,11 +45,19 @@ export async function run() {
   // 建一个带两张图的已迁移系统。
   const seedSystem = async (name = '系统A') => {
     const [doc] = await db.createProjectGroupWithSystems({ projectCode: 'C1', projectName: '项目一', unitName: '单位', reportDate: '2026-09-01' }, [name]);
-    const asset = doc.assets[0];
-    const item = asset.items[0];
-    await db.addImageToProject(doc.id, asset.id, item.id, { id: 'img-1', fileName: 'a.png', data: PNG, caption: '一', uploadedAt: '2026-01-01T00:00:00.000Z' });
-    await db.addImageToProject(doc.id, asset.id, item.id, { id: 'img-2', fileName: 'b.jpg', data: JPG, caption: '二', uploadedAt: '2026-01-02T00:00:00.000Z' });
-    return { doc: await db.loadProject(doc.id), assetId: asset.id, itemId: item.id };
+    const asset = {
+      id: `asset-${name}`,
+      name,
+      categoryId: doc.categories[0].id,
+      items: [{ id: `item-${name}`, label: '截图', required: false, fromTemplateId: null, images: [] }],
+    };
+    await db.saveProjectWithImages({ ...doc, assets: [asset] });
+    const seeded = await db.loadProject(doc.id);
+    const seededAsset = seeded.assets[0];
+    const item = seededAsset.items[0];
+    await db.addImageToProject(seeded.id, seededAsset.id, item.id, { id: 'img-1', fileName: 'a.png', data: PNG, caption: '一', uploadedAt: '2026-01-01T00:00:00.000Z' });
+    await db.addImageToProject(seeded.id, seededAsset.id, item.id, { id: 'img-2', fileName: 'b.jpg', data: JPG, caption: '二', uploadedAt: '2026-01-02T00:00:00.000Z' });
+    return { doc: await db.loadProject(seeded.id), assetId: seededAsset.id, itemId: item.id };
   };
 
   await test('normalize 透传与非法值归一', async () => {

@@ -1,5 +1,6 @@
-import type { Asset, Category, ProjectMeta } from '../types';
+import type { Asset, Category, ProjectMeta, ProjectProfile } from '../types';
 import { hydrateAssets } from './db';
+import { normalizeProfile, sanitizeFileNamePart } from './preset';
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -36,25 +37,14 @@ export function validateRequired(
   return missing;
 }
 
-function sanitizeFileNamePart(value: string, fallback: string): string {
-  const cleaned = value
-    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[. ]+$/g, '')
-    .replace(/_+/g, '_');
-  if (!cleaned) return fallback;
-  return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(cleaned) ? `${cleaned}_项目` : cleaned;
-}
-
-export function buildReportFileName(meta: ProjectMeta): string {
+export function buildReportFileName(meta: ProjectMeta, profile?: ProjectProfile): string {
   const systemName = sanitizeFileNamePart(meta.systemName, '未命名系统');
   // 填了项目名：项目名_系统名；没填项目名：直接用系统名，不加多余前缀。
   const projectName = meta.projectName?.trim()
     ? sanitizeFileNamePart(meta.projectName, '')
     : '';
   const prefix = projectName ? `${projectName}_` : '';
-  return `${prefix}${systemName}_测评证据.docx`;
+  return `${prefix}${systemName}_${sanitizeFileNamePart(profile?.exportFilePrefix ?? '证据采集', '证据采集')}.docx`;
 }
 
 /**
@@ -65,7 +55,8 @@ export async function exportWordReport(
   meta: ProjectMeta,
   categories: Category[],
   assets: Asset[],
-  projectId: string
+  projectId: string,
+  profile?: ProjectProfile
 ): Promise<void> {
   // 图片字节存在独立 store，导出前先按需补齐，保证报告内嵌的是完整分辨率原图。
   const hydratedAssets = await hydrateAssets(projectId, assets);
@@ -75,6 +66,7 @@ export async function exportWordReport(
   } catch {
     throw new Error('无法加载 Word 导出组件，请确认应用文件完整后重试。');
   }
-  const blob = await createWordReportBlob(meta, categories, hydratedAssets);
-  downloadBlob(blob, buildReportFileName(meta));
+  const effectiveProfile = normalizeProfile(profile);
+  const blob = await createWordReportBlob(meta, categories, hydratedAssets, effectiveProfile);
+  downloadBlob(blob, buildReportFileName(meta, effectiveProfile));
 }

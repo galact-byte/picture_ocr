@@ -134,7 +134,7 @@ const MobileCollector: React.FC<MobileCollectorProps> = ({ projectId, onBack }) 
 
   const handleExport = async (password: string) => {
     if (!document) return;
-    await exportEncryptedDataPackage(document.meta, document.categories, document.assets, password, document.id);
+    await exportEncryptedDataPackage(document.meta, document.categories, document.assets, password, document.id, document.profile);
     setMessage('已生成加密采集包。请通过浏览器下载列表保存文件，再用 USB 回传电脑。');
   };
 

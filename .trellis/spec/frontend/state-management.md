@@ -6,7 +6,7 @@
 
 | 类型 | 位置与示例 |
 | --- | --- |
-| 工作台项目状态 | `src/context/appReducer.ts` 的 `AppState`（meta、categories、assets、当前选择） |
+| 工作台项目状态 | `src/context/appReducer.ts` 的 `AppState`（meta、profile、categories、assets、当前选择） |
 | Provider/持久化协调 | `src/context/AppContext.tsx`（加载、500ms 防抖保存、保存队列、卸载刷新） |
 | 列表返回位置 | `src/App.tsx` 的 `ProjectListViewState`（页签、搜索与滚动、普通/搜索期间展开 ID），跨列表重挂载保留 |
 | 瞬时页面 UI | 各组件的 `useState`，如 `src/components/ProjectList.tsx` 的选择集、对话框和保存中状态 |
@@ -17,7 +17,11 @@
 
 - 改动项目领域数据时定义判别联合 `AppAction` 并在 `appReducer` 内以不可变方式更新；`ADD_IMAGE`、`RENAME_ITEM`、`REORDER_IMAGES` 是现有模式。不要在组件中直接修改数组、asset 或 image 对象。
 - 组件通过 `useAppState()` 读取，通过 `useDispatch()` 分发动作；需要同步落盘保证的 LAN 图片写入使用 `useAppContext().addImageAndSave()`，见 `src/App.tsx`。
+- 工作台的 `updateProjectMeta(meta, profile)` 必须等待项目事务完成再更新内存并关闭表单；写入失败保留弹窗和用户输入，不让下一次自动保存偷偷写入失败的设置。预设管理界面不增加解释性小字；必要操作说明放 README。
 - reducer 负责纯状态转换和选择修复。例如 `LOAD_PROJECT` 调用 `pickActiveSelection`，删除资产后选择同分类的第一个剩余资产。副作用、IndexedDB 和计时器不放入 reducer。
+
+- 项目的 `profile`（报告标题、导出文件名前缀、单位字段名称和必填标志）属于 `ProjectDocument` 快照，必须随 `LOAD_PROJECT`、自动保存、摘要、ZIP/加密包导入导出和归档链路透传；旧文档缺少该字段时使用固定兼容配置，不从当前全局预设补写旧分类或资产。
+- 默认预设只影响新建项目；`ADD_CATEGORY` / `RENAME_CATEGORY` 必须通过 reducer，分类 ID 稳定，空名称原样拒绝，不提供删除分类 action。
 
 ## 检查项顺序变更约定
 

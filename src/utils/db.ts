@@ -7,9 +7,11 @@ import type {
   ProjectGroup,
   ProjectGroupSummary,
   ProjectMeta,
+  ProjectPreset,
   ProjectSummary,
 } from '../types';
-import defaultCategories, { createDefaultMeta, createPresetAssets } from '../data/defaults';
+import { createDefaultMeta, createPresetAssets } from '../data/defaults';
+import { DEFAULT_PRESET, GENERIC_PROFILE, LEGACY_PROFILE, cloneProfile, normalizeProfile, parsePreset } from './preset';
 import { recordError } from './errorLog';
 import { trackWrite } from './pendingWrites';
 import { createEmptyRepairReport, planSummaryRepair, type SummaryRepairReport } from './summaryRepair';
@@ -30,11 +32,13 @@ import {
 } from './imageStore';
 
 const DB_NAME = 'evidence-collector-db';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const LEGACY_STORE_NAME = 'project';
 const PROJECTS_STORE_NAME = 'projects';
 const PROJECT_GROUPS_STORE_NAME = 'projectGroups';
 const PROJECT_SUMMARIES_STORE_NAME = 'projectSummaries';
+const SETTINGS_STORE_NAME = 'settings';
+const DEFAULT_PRESET_KEY = 'defaultPreset';
 const LEGACY_PROJECT_ID = 'current';
 
 // 存储操作超时兜底：卡死超过该阈值时以明确错误返回，避免 UI 无限转圈。
@@ -102,10 +106,13 @@ function openDB(): Promise<IDBDatabase> {
           const summariesStore = db.createObjectStore(PROJECT_SUMMARIES_STORE_NAME, { keyPath: 'id' });
           summariesStore.createIndex('updatedAt', 'updatedAt', { unique: false });
         }
-        // v4 → v5：只创建空的图片字节 store，存量内联图片的搬迁延后到 migrateInlineImages()。
         if (!db.objectStoreNames.contains(IMAGES_STORE_NAME)) {
           const imagesStore = db.createObjectStore(IMAGES_STORE_NAME, { keyPath: 'key' });
           imagesStore.createIndex(IMAGES_PROJECT_INDEX, 'projectId', { unique: false });
+        }
+        // v4 → v5：只创建空的图片字节 store，存量内联图片的搬迁延后到 migrateInlineImages()。
+        if (!db.objectStoreNames.contains(SETTINGS_STORE_NAME)) {
+          db.createObjectStore(SETTINGS_STORE_NAME, { keyPath: 'id' });
         }
       } catch (error) {
         recordError({
@@ -123,7 +130,37 @@ function openDB(): Promise<IDBDatabase> {
   }), 'openDB', DB_OPEN_TIMEOUT_MS);
 }
 
-// 摘要 store 自检修复：按主键集合求差，缺摘要的补、孤立摘要的删。
+export async function getDefaultPreset(): Promise<ProjectPreset> {
+  const db = await openDB();
+  try {
+    return await withTimeout(new Promise<ProjectPreset>((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE_NAME, 'readonly');
+      const request = tx.objectStore(SETTINGS_STORE_NAME).get(DEFAULT_PRESET_KEY);
+      let result: ProjectPreset;
+      request.onsuccess = () => {
+        try { result = parsePreset(request.result === undefined ? DEFAULT_PRESET : request.result.preset); }
+        catch (error) { reject(error); }
+      };
+      tx.oncomplete = () => resolve(result);
+      tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('读取默认预设失败'));
+    }), 'getDefaultPreset');
+  } finally { db.close(); }
+}
+
+export async function saveDefaultPreset(preset: ProjectPreset): Promise<void> {
+  const validated = parsePreset(preset);
+  const db = await openDB();
+  try {
+    await trackWrite(withTimeout(new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE_NAME, 'readwrite');
+      tx.objectStore(SETTINGS_STORE_NAME).put({ id: DEFAULT_PRESET_KEY, preset: validated });
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('保存默认预设失败'));
+    }), 'saveDefaultPreset', DB_DOC_TIMEOUT_MS));
+  } finally { db.close(); }
+}
+
+
 // 不用「摘要数 >= 项目数」这种近似判断——数目相等也可能是「补了一条新的、漏了一条旧的」，
 // 那条漏掉的项目就会永久从列表消失（v0.6.1 跳过坏记录即造成用户少了一个项目）。
 let summariesSyncDone = false;
@@ -381,31 +418,25 @@ export async function getStoreDiagnostics(): Promise<StoreDiagnostics> {
 
 export function createProjectDocument(
   overrides: Partial<ProjectMeta> = {},
-  groupId: string | null = null
+  groupId: string | null = null,
+  preset: ProjectPreset = DEFAULT_PRESET,
 ): ProjectDocument {
   const now = Date.now();
-  const categories = cloneCategories(defaultCategories);
+  const categories = cloneCategories(preset.categories);
   return normalizeProjectDocument({
-    id: genId('project'),
-    groupId,
+    id: genId('project'), groupId,
     meta: normalizeMeta({ ...createDefaultMeta(), ...overrides }),
-    categories,
-    assets: createPresetAssets(categories),
-    createdAt: now,
-    updatedAt: now,
+    profile: cloneProfile(preset.profile), categories,
+    assets: createPresetAssets(categories), createdAt: now, updatedAt: now,
   });
 }
 
 export function createProjectGroup(overrides: Partial<Omit<ProjectGroup, 'id' | 'createdAt' | 'updatedAt'>> = {}): ProjectGroup {
   const now = Date.now();
   return normalizeProjectGroup({
-    id: genId('group'),
-    projectCode: overrides.projectCode ?? '',
-    projectName: overrides.projectName ?? '',
-    unitName: overrides.unitName ?? '',
-    reportDate: overrides.reportDate ?? createDefaultMeta().reportDate,
-    createdAt: now,
-    updatedAt: now,
+    id: genId('group'), projectCode: overrides.projectCode ?? '', projectName: overrides.projectName ?? '',
+    unitName: overrides.unitName ?? '', reportDate: overrides.reportDate ?? createDefaultMeta().reportDate,
+    profile: overrides.profile ?? GENERIC_PROFILE, createdAt: now, updatedAt: now,
   });
 }
 
@@ -416,6 +447,7 @@ export function normalizeProjectDocument(doc: Partial<ProjectDocument> & { id?: 
     id: doc.id || genId('project'),
     groupId: typeof doc.groupId === 'string' && doc.groupId.trim() ? doc.groupId : null,
     meta: normalizeMeta(doc.meta),
+    profile: normalizeProfile(doc.profile, doc.profile ? GENERIC_PROFILE : LEGACY_PROFILE),
     categories,
     assets: cloneAssets(doc.assets ?? []),
     createdAt: doc.createdAt || doc.updatedAt || now,
@@ -455,6 +487,7 @@ export function normalizeProjectGroup(group: Partial<ProjectGroup> & { id?: stri
     projectName: group.projectName?.trim() ?? '',
     unitName: group.unitName?.trim() ?? '',
     reportDate: group.reportDate ?? '',
+    profile: normalizeProfile(group.profile, group.profile ? GENERIC_PROFILE : LEGACY_PROFILE),
     createdAt: group.createdAt || group.updatedAt || now,
     updatedAt: group.updatedAt || now,
   };
@@ -567,15 +600,17 @@ export function splitSystemNames(value: string): string[] {
 }
 
 export async function createProjectGroupWithSystems(
-  groupValues: Pick<ProjectGroup, 'projectCode' | 'projectName' | 'unitName' | 'reportDate'>,
-  systemNames: string[]
+  groupValues: Pick<ProjectGroup, 'projectCode' | 'projectName' | 'unitName' | 'reportDate'> & Partial<Pick<ProjectGroup, 'profile'>>,
+  systemNames: string[],
+  preset: ProjectPreset = DEFAULT_PRESET
 ): Promise<ProjectDocument[]> {
   if (systemNames.length === 0) {
     throw new Error('至少需要一个系统名称');
   }
 
-  const group = createProjectGroup(groupValues);
-  const projects = systemNames.map((systemName) => createProjectDocument({ ...group, systemName }, group.id));
+  const group = createProjectGroup({ ...groupValues, profile: groupValues.profile ?? preset.profile });
+  const projectPreset: ProjectPreset = { ...DEFAULT_PRESET, categories: cloneCategories(preset.categories), profile: cloneProfile(group.profile ?? preset.profile) };
+  const projects = systemNames.map((systemName) => createProjectDocument({ ...group, systemName }, group.id, projectPreset));
   const db = await openDB();
   return withTimeout(new Promise<ProjectDocument[]>((resolve, reject) => {
     const tx = db.transaction([PROJECT_GROUPS_STORE_NAME, PROJECTS_STORE_NAME, PROJECT_SUMMARIES_STORE_NAME], 'readwrite');
@@ -591,15 +626,16 @@ export async function createProjectGroupWithSystems(
   }), 'createProjectGroupWithSystems', DB_DOC_TIMEOUT_MS);
 }
 
-export async function createSystemForGroup(group: ProjectGroup, systemName: string): Promise<ProjectDocument> {
+export async function createSystemForGroup(group: ProjectGroup, systemName: string, preset?: ProjectPreset): Promise<ProjectDocument> {
   const normalizedGroup = normalizeProjectGroup(group);
+  const template = preset ?? await getDefaultPreset();
   const project = createProjectDocument({
     projectCode: normalizedGroup.projectCode,
     projectName: normalizedGroup.projectName,
     unitName: normalizedGroup.unitName,
     reportDate: normalizedGroup.reportDate,
     systemName,
-  }, normalizedGroup.id);
+  }, normalizedGroup.id, { ...template, profile: normalizeProfile(normalizedGroup.profile) });
   await saveProject(project);
   return project;
 }
@@ -612,11 +648,19 @@ export async function updateProjectGroupAndSystems(group: ProjectGroup): Promise
     const groupsStore = tx.objectStore(PROJECT_GROUPS_STORE_NAME);
     const projectsStore = tx.objectStore(PROJECTS_STORE_NAME);
     const summariesStore = tx.objectStore(PROJECT_SUMMARIES_STORE_NAME);
-    groupsStore.put(normalizedGroup);
+    let validationError: Error | undefined;
     const matchingSystems = projectsStore.index('groupId').getAll(normalizedGroup.id);
     matchingSystems.onsuccess = () => {
-      (matchingSystems.result as ProjectDocument[]).forEach((system) => {
-        const normalizedSystem = normalizeProjectDocument(system);
+      const systems = (matchingSystems.result as ProjectDocument[]).map(normalizeProjectDocument);
+      const requiredProfile = normalizeProfile(normalizedGroup.profile).unitFieldRequired
+        ? normalizeProfile(normalizedGroup.profile) : systems.map((system) => normalizeProfile(system.profile)).find((profile) => profile.unitFieldRequired);
+      if (requiredProfile && !normalizedGroup.unitName.trim()) {
+        validationError = new Error(`请填写${requiredProfile.unitFieldLabel}`);
+        tx.abort();
+        return;
+      }
+      groupsStore.put(normalizedGroup);
+      systems.forEach((normalizedSystem) => {
         const updatedSystem: ProjectDocument = {
           ...normalizedSystem,
           meta: {
@@ -634,7 +678,7 @@ export async function updateProjectGroupAndSystems(group: ProjectGroup): Promise
     };
     matchingSystems.onerror = () => reject(matchingSystems.error);
     tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onerror = tx.onabort = () => { db.close(); reject(validationError ?? tx.error ?? new Error('更新项目组失败')); };
   }), 'updateProjectGroupAndSystems', DB_DOC_TIMEOUT_MS));
 }
 
@@ -1382,7 +1426,7 @@ function normalizeMeta(meta: Partial<ProjectMeta> | undefined): ProjectMeta {
 }
 
 function normalizeCategories(categories: Category[] | undefined): Category[] {
-  return cloneCategories(categories && categories.length > 0 ? categories : defaultCategories);
+  return categories === undefined ? cloneCategories(DEFAULT_PRESET.categories) : cloneCategories(categories);
 }
 
 function toProjectSummary(doc: ProjectDocument): ProjectSummary {
@@ -1390,6 +1434,7 @@ function toProjectSummary(doc: ProjectDocument): ProjectSummary {
     id: doc.id,
     groupId: doc.groupId,
     meta: doc.meta,
+    profile: cloneProfile(doc.profile ?? LEGACY_PROFILE),
     assetCount: doc.assets.length,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
@@ -1404,6 +1449,7 @@ function normalizeSummary(summary: Partial<ProjectSummary> & { id: string }): Pr
     id: summary.id,
     groupId: typeof summary.groupId === 'string' && summary.groupId.trim() ? summary.groupId : null,
     meta: normalizeMeta(summary.meta),
+    profile: normalizeProfile(summary.profile, summary.profile ? GENERIC_PROFILE : LEGACY_PROFILE),
     assetCount: typeof summary.assetCount === 'number' && summary.assetCount >= 0 ? summary.assetCount : 0,
     createdAt: summary.createdAt || summary.updatedAt || now,
     updatedAt: summary.updatedAt || now,
@@ -1418,6 +1464,7 @@ function summaryFromRaw(raw: Partial<ProjectDocument> & { id: string }): Project
     id: raw.id,
     groupId: typeof raw.groupId === 'string' && raw.groupId.trim() ? raw.groupId : null,
     meta: normalizeMeta(raw.meta),
+    profile: normalizeProfile(raw.profile, raw.profile ? GENERIC_PROFILE : LEGACY_PROFILE),
     assetCount: Array.isArray(raw.assets) ? raw.assets.length : 0,
     createdAt: raw.createdAt || raw.updatedAt || now,
     updatedAt: raw.updatedAt || now,
@@ -1426,6 +1473,10 @@ function summaryFromRaw(raw: Partial<ProjectDocument> & { id: string }): Project
 }
 
 function cloneCategories(categories: Category[]): Category[] {
+  return cloneCategoriesFromPreset(categories);
+}
+
+function cloneCategoriesFromPreset(categories: Category[]): Category[] {
   return categories.map((category) => ({ ...category, defaultItems: (category.defaultItems ?? []).map((item) => ({ ...item })) }));
 }
 

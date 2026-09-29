@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import type { ProjectMeta } from '../types';
+import type { ProjectMeta, ProjectProfile } from '../types';
 import { useAppContext, useAppState } from '../context/AppContext';
+import { parseProfile } from '../utils/preset';
 import { useToast } from './Toast';
 
 interface ProjectInfoDialogProps {
@@ -9,41 +10,49 @@ interface ProjectInfoDialogProps {
 }
 
 const ProjectInfoDialog: React.FC<ProjectInfoDialogProps> = ({ open, onClose }) => {
-  const { meta } = useAppState();
+  const { meta, profile } = useAppState();
   const { updateProjectMeta } = useAppContext();
   const showToast = useToast();
   const [form, setForm] = useState<ProjectMeta>({ ...meta });
+  const [profileForm, setProfileForm] = useState<ProjectProfile>({ ...profile });
   const [errors, setErrors] = useState<{ unitName?: string; systemName?: string }>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm({ ...meta });
+      setProfileForm({ ...profile });
       setErrors({});
     }
-  }, [open, meta]);
+  }, [open, meta, profile]);
 
   if (!open) return null;
 
   const handleSave = async () => {
+    if (saving) return;
     const unitName = form.unitName.trim();
     const systemName = form.systemName.trim();
     const nextErrors = {
-      unitName: unitName ? undefined : '请填写单位名称',
+      unitName: profileForm.unitFieldRequired && !unitName ? `请填写${profileForm.unitFieldLabel}` : undefined,
       systemName: systemName ? undefined : '请填写系统名称',
     };
     setErrors(nextErrors);
     if (nextErrors.unitName || nextErrors.systemName) return;
 
+    if (!profileForm.reportTitle.trim() || !profileForm.exportFilePrefix.trim() || !profileForm.unitFieldLabel.trim()) {
+      showToast('报告配置不能为空。', 'error');
+      return;
+    }
     setSaving(true);
     try {
+      const nextProfile = parseProfile(profileForm);
       await updateProjectMeta({
         ...form,
         projectCode: form.projectCode.trim(),
         projectName: form.projectName.trim(),
         unitName,
         systemName,
-      });
+      }, nextProfile);
       onClose();
     } catch (err) {
       showToast(`保存项目信息失败：${err instanceof Error ? err.message : '未知错误'}`, 'error');
@@ -53,14 +62,13 @@ const ProjectInfoDialog: React.FC<ProjectInfoDialogProps> = ({ open, onClose }) 
   };
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-labelledby="project-info-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!saving) onClose(); }}>
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">项目信息</h2>
-          <p className="mt-1 text-sm text-gray-500">项目编号、项目名称和日期为选填项。</p>
+          <h2 id="project-info-title" className="text-lg font-semibold text-gray-800">项目信息</h2>
         </div>
         <div className="px-6 py-4 space-y-4">
           <div>
@@ -80,11 +88,11 @@ const ProjectInfoDialog: React.FC<ProjectInfoDialogProps> = ({ open, onClose }) 
               value={form.projectName}
               onChange={(e) => setForm({ ...form, projectName: e.target.value })}
               className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="例：XX系统等保测评"
+              placeholder="例：设备巡检项目"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">单位名称 <span className="text-red-600">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{profileForm.unitFieldLabel} {profileForm.unitFieldRequired && <span className="text-red-600">*</span>}</label>
             <input
               type="text"
               value={form.unitName}
@@ -116,10 +124,18 @@ const ProjectInfoDialog: React.FC<ProjectInfoDialogProps> = ({ open, onClose }) 
               className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+          <div className="border-t border-gray-200 pt-4 space-y-3">
+            <p className="text-sm font-semibold text-gray-800">报告配置</p>
+            <label className="block text-sm text-gray-700">报告标题<input className="mt-1 w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm" value={profileForm.reportTitle} onChange={(e) => setProfileForm({ ...profileForm, reportTitle: e.target.value })} /></label>
+            <label className="block text-sm text-gray-700">导出文件名前缀<input className="mt-1 w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm" value={profileForm.exportFilePrefix} onChange={(e) => setProfileForm({ ...profileForm, exportFilePrefix: e.target.value })} /></label>
+            <label className="block text-sm text-gray-700">单位字段名称<input className="mt-1 w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm" value={profileForm.unitFieldLabel} onChange={(e) => setProfileForm({ ...profileForm, unitFieldLabel: e.target.value })} /></label>
+            <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={profileForm.unitFieldRequired} onChange={(e) => setProfileForm({ ...profileForm, unitFieldRequired: e.target.checked })} />单位字段必填</label>
+          </div>
         </div>
         <div className="px-6 py-3 border-t border-gray-200 flex justify-end gap-2">
           <button
             onClick={onClose}
+            disabled={saving}
             className="px-4 py-1.5 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
           >
             取消

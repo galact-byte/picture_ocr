@@ -1,6 +1,6 @@
 // 校验「图片字节拆分独立 images store」链路：
 // 1) 纯逻辑 src/utils/imageStore.ts（key 构造、内联图收集、剥离、对账差集、迁移选目标）用真实调用测试；
-// 2) db.ts 契约：DB_VERSION=5、升级只建表不遍历、写/读/删入口、删除清理、迁移「先写→读回校验→再剥离」同事务。
+// 2) db.ts 契约：DB_VERSION=6、升级只建表不遍历、写/读/删入口、删除清理、迁移「先写→读回校验→再剥离」同事务。
 // 读源码做断言前先归一化 CRLF（Windows 工作区源码为 CRLF）。
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -112,7 +112,7 @@ try {
 // ---------- 2) db.ts 契约 ----------
 const db = read('src/utils/db.ts');
 
-check('DB_VERSION 升到 5', /const DB_VERSION = 5;/.test(db));
+check('DB_VERSION 升到 6', /const DB_VERSION = 6;/.test(db));
 check('db.ts 复用 imageStore 的常量与纯逻辑', /from '\.\/imageStore'/.test(db));
 
 const upgradeStart = db.indexOf('request.onupgradeneeded');

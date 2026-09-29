@@ -116,7 +116,7 @@ export async function buildArchive(input: {
   appVersion: string;
 }): Promise<BuiltArchive> {
   const { doc } = input;
-  const { zip, manifest: packageManifest } = buildDataPackageZip(doc.meta, doc.categories, doc.assets);
+  const { zip, manifest: packageManifest } = buildDataPackageZip(doc.meta, doc.categories, doc.assets, doc.profile);
   const paths = collectImageRefPaths(packageManifest);
   const images: ArchiveImageEntry[] = [];
   let imageBytes = 0;

@@ -1,5 +1,38 @@
 # 修改记录 — Picture OCR
 
+## 2026-09-30 — 通用证据采集模板与项目预设
+
+### 背景与目标
+- 将新项目从固定等保内容改为通用证据采集模板：默认只有“通用分类”和可选“截图”检查项，不再生成示例资产。
+- 增加可导入、导出和恢复的 JSON 预设；等保分类、检查项、报告标题、文件名前缀及单位字段配置由运行时预设提供。
+- 让每个项目保存自己的模板配置和报告配置，驱动项目表单、DOCX、ZIP、加密包及归档兼容流程。
+
+### 影响与兼容性
+- 新增 IndexedDB `settings` store 保存默认预设，数据库版本升至 6；升级回调只创建缺失 store/index，不遍历既有数据。Web 与桌面版按 origin/userData 隔离，需要分别导入预设。
+- 旧项目没有 `profile` 时使用固定兼容配置：报告标题和导出前缀为通用值，单位名称保持必填；覆盖导入可采用数据包配置，合并导入保留目标项目配置。
+- 等保文件 `presets/dengbao.json` 仅作为本地运行时导入文件并被 `.gitignore` 排除，不进入构建产物；应用标识、桌面数据位置和真实用户库未改变。
+
+### 文件与实现
+| 操作 | 路径 | 说明 |
+|---|---|---|
+| 新增/修改 | `src/types/index.ts`、`src/utils/preset.ts`、`src/data/defaults.ts` | 增加 `ProjectProfile`/`ProjectPreset`、运行时校验、深拷贝、文件名净化和通用默认内容。 |
+| 修改 | `src/utils/db.ts`、`src/context/appReducer.ts`、`src/context/AppContext.tsx` | 持久化默认预设；项目/项目组创建、加载、摘要和保存链路保留项目配置；新增分类及改名 action。 |
+| 新增/修改 | `src/components/project-list/PresetDialog.tsx`、`ProjectList.tsx`、`ProjectInfoDialog.tsx`、`ProjectGroupDialog.tsx`、`Sidebar.tsx` | 增加预设管理、报告配置、动态单位字段校验、分类管理和旧项目配置展示。 |
+| 修改 | `src/utils/wordDocument.ts`、`src/utils/wordExport.ts`、`src/utils/exportImport.ts`、`src/utils/archiveFormat.ts`、`src/components/MobileCollector.tsx` | DOCX/ZIP/加密包/归档透传项目 profile，并兼容旧数据包。 |
+| 新增/修改 | `scripts/verify-presets.mjs`、归档/图片/项目列表验证脚本、`README.md` | 增加模型和双端 UI 回归，修正通用初始数据及测试夹具。 |
+
+### 验证
+- `npm run build`：生产构建通过，生成 12 项 PWA 预缓存资源。
+- `node scripts/verify-presets.mjs`：9 组通过，覆盖通用新建、预设深拷贝、旧项目兼容、分类 action、命名净化、JSON 拒绝规则、文本长度与跨分类重复 ID。
+- `node scripts/verify-presets-ui.mjs`：Web/Electron 各 7 组通过，包括原生 IDB、ZIP/加密包/DOCX、分类增改、另存再导入、配置保存失败/重试/重开，以及三档宽度；截图已检查，无新增解释小字。
+- `node scripts/verify-project-list-views.mjs`、`node scripts/verify-project-list-ui.mjs`：纯逻辑通过；Web 19 组、Electron 18 组真实浏览器流程通过，覆盖列表读路径、创建/编辑/导入导出、采集范围、键盘焦点和 375/768/1440px 布局。
+- `verify:summary-repair`、`verify:list-summary-store`、`verify:image-store`、`verify:archive-model`、`verify:archive-format`、`verify:archive-flow`、`verify:evidence-package`、`verify:lan-mobile-picker`、`verify:data-location`、`verify:pwa-build`：串行回归通过；加强后的归档 flow 双端 110 条检查通过，含配置归档/恢复。`git diff --check` 通过。完整证据见任务 `verification.md`。
+
+### 已知限制与后续
+- 预设导入只影响之后新建的项目，已有项目不会批量改模板；桌面版与 Web ZIP 不能共享 IndexedDB 预设。
+- 验证仅使用隔离 Web/Electron 环境；未制作新版安装包、未发布，未操作用户真实数据。Word 验证针对生成的 DOCX XML 和属性，未人工打开 Microsoft Word。
+
+
 ## 2026-09-16 — 局域网采集后台恢复、名称与拍照入口
 
 ### 背景与目标

@@ -20,7 +20,7 @@ interface AppContextValue {
   /** 当前打开的项目 id：图片字节按 `${projectId}:${imageId}` 存放，显示时必须带上。 */
   projectId: string;
   projectGroupId: string | null;
-  updateProjectMeta: (meta: AppState['meta']) => Promise<void>;
+  updateProjectMeta: (meta: AppState['meta'], profile?: AppState['profile']) => Promise<void>;
   addImageAndSave: (payload: Extract<AppAction, { type: 'ADD_IMAGE' }>['payload']) => Promise<void>;
   removeImageAndSave: (assetId: string, itemId: string, imageId: string) => Promise<void>;
 }
@@ -59,6 +59,7 @@ export function AppProvider({ children, projectId, onProjectSaved, onArchivedOpe
     id: projectId,
     groupId: projectGroupIdRef.current,
     meta: snapshot.meta,
+    profile: snapshot.profile,
     categories: snapshot.categories,
     assets: snapshot.assets,
     createdAt: createdAtRef.current,
@@ -137,7 +138,7 @@ export function AppProvider({ children, projectId, onProjectSaved, onArchivedOpe
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [projectId, state.meta, state.categories, state.assets, onProjectSaved]);
+  }, [projectId, state.meta, state.profile, state.categories, state.assets, onProjectSaved]);
 
   useEffect(() => {
     return () => {
@@ -192,7 +193,10 @@ export function AppProvider({ children, projectId, onProjectSaved, onArchivedOpe
     dispatch(action);
   }, [projectId]);
 
-  const updateProjectMeta = async (meta: AppState['meta']) => {
+  const updateProjectMeta = async (meta: AppState['meta'], profile = stateRef.current.profile) => {
+    if (!loadedRef.current) throw new Error('当前项目尚未加载完成。');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    await saveQueueRef.current;
     const groupId = projectGroupIdRef.current;
     if (groupId) {
       const group = await loadProjectGroup(groupId);
@@ -207,7 +211,14 @@ export function AppProvider({ children, projectId, onProjectSaved, onArchivedOpe
         });
       }
     }
+    const nextState = { ...stateRef.current, meta, profile };
+    const document = buildDocument(nextState);
+    await enqueueProjectSave(document);
+    stateRef.current = nextState;
+    latestDocRef.current = document;
     dispatch({ type: 'SET_META', payload: meta });
+    dispatch({ type: 'SET_PROFILE', payload: profile });
+    onProjectSaved?.();
   };
 
   return (

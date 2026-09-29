@@ -8,9 +8,10 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const output = path.resolve('.trellis/.runtime/project-list-qa');
+const presetMode = process.argv.includes('--presets');
+const output = path.resolve(`.trellis/.runtime/${presetMode ? 'preset-qa' : 'project-list-qa'}`);
 require('node:fs').mkdirSync(output, { recursive: true });
-const bundle = (await build({ entryPoints: ['scripts/project-list-browser-cases.mjs'], bundle: true, write: false, format: 'iife', globalName: 'cases', platform: 'browser' })).outputFiles[0].text + '\nwindow.cases = cases;';
+const bundle = (await build({ entryPoints: [presetMode ? 'scripts/preset-browser-cases.mjs' : 'scripts/project-list-browser-cases.mjs'], bundle: true, loader: { '.png': 'dataurl' }, write: false, format: 'iife', globalName: 'cases', platform: 'browser' })).outputFiles[0].text + '\nwindow.cases = cases;';
 let webLanEnabled = false;
 let webLanSnapshot = null;
 let webLanRunning = false;
@@ -86,28 +87,42 @@ try {
       client = await connect(port);
       await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
       await client.send('Page.enable');
+      for (let n = 0; n < 100; n++) {
+        if (await client.evaluate('document.readyState === "complete" && !!document.querySelector("#root")')) break;
+        await delay(50);
+      }
       await client.evaluate(bundle);
-      await client.evaluate('cases.until(() => document.querySelector("#project-list-title"), "初始页面")');
-      await client.evaluate('cases.seed()');
+      await client.evaluate('window.cases.until(() => document.querySelector("#project-list-title"), "初始页面")');
+      if (presetMode) {
+        for (const name of ['storage', 'exports', 'ui', 'failures']) pass(await client.evaluate(`window.cases.${name}()`));
+        for (const width of [375, 768, 1440]) {
+          await client.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
+          pass(`${width}px ${await client.evaluate('window.cases.layout()')}`);
+          const image = await client.send('Page.captureScreenshot', { format: 'png' });
+          writeFileSync(path.join(output, `${platform}-${width}.png`), Buffer.from(image.data, 'base64'));
+        }
+        continue;
+      }
+      await client.evaluate('window.cases.seed()');
       // 新文档执行前安装读计数，验证生产首屏仅加载摘要。
-      await client.send('Page.addScriptToEvaluateOnNewDocument', { source: bundle + '\nwindow.listReads = cases.instrument();' });
+      await client.send('Page.addScriptToEvaluateOnNewDocument', { source: bundle + '\nwindow.listReads = window.cases.instrument();' });
       await client.send('Page.reload', { ignoreCache: true });
       await delay(400);
-      await client.evaluate('cases.until(() => document.querySelectorAll("[data-group-id]").length === 4, "夹具加载")');
+      await client.evaluate('window.cases.until(() => document.querySelectorAll("[data-group-id]").length === 4, "夹具加载")');
       assert.deepEqual(await client.evaluate('window.listReads'), { documents: 0, images: 0 });
       pass('生产首屏只读摘要，无项目文档/图片读取');
-      if (platform === 'web') { assert.equal(await client.evaluate('!!cases.button("手机采集")'), false); pass('无桥网页不显示手机采集'); }
-      for (const name of ['core', 'mutations', 'exportAndImport', 'failedLoad', 'savedButRefreshFailed']) pass(await client.evaluate(`cases.${name}()`));
+      if (platform === 'web') { assert.equal(await client.evaluate('!!window.cases.button("手机采集")'), false); pass('无桥网页不显示手机采集'); }
+      for (const name of ['core', 'mutations', 'exportAndImport', 'failedLoad', 'savedButRefreshFailed']) pass(await client.evaluate(`window.cases.${name}()`));
       for (const width of [375, 768, 1440]) {
         await client.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
-        pass(`${width}px ${await client.evaluate('cases.layout()')}`);
+        pass(`${width}px ${await client.evaluate('window.cases.layout()')}`);
         const screenshot = await client.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(path.join(output, `${platform}-${width}.png`), Buffer.from(screenshot.data, 'base64'));
-        pass(`${width}px ${await client.evaluate('cases.groupLayout()')}`);
+        pass(`${width}px ${await client.evaluate('window.cases.groupLayout()')}`);
         const groupScreenshot = await client.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(path.join(output, `${platform}-groups-${width}.png`), Buffer.from(groupScreenshot.data, 'base64'));
       }
-      await client.evaluate('cases.tab("independent")');
+      await client.evaluate('window.cases.tab("independent")');
       await client.evaluate('document.querySelector("[data-system-id] summary").focus()');
       const key = async (key, code, virtual) => { await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: virtual, ...(key === 'Enter' ? { text: '\r' } : {}) }); await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtual }); };
       await key('Enter', 'Enter', 13); await delay(100);
@@ -117,16 +132,16 @@ try {
       assert.equal(await client.evaluate('document.activeElement.tagName'), 'SUMMARY');
       assert.equal(await client.evaluate('!!document.querySelector("details[open]")'), false);
       pass('真实 Enter/Tab/Escape 按键与焦点恢复');
-      await client.evaluate('cases.tab("groups")');
+      await client.evaluate('window.cases.tab("groups")');
       await client.evaluate('document.getElementById("group-toggle-multi").focus()');
       assert.equal(await client.evaluate('document.activeElement.getAttribute("aria-expanded")'), 'true');
       await key('Enter', 'Enter', 13); await delay(80);
       assert.equal(await client.evaluate('document.activeElement.getAttribute("aria-expanded")'), 'false');
-      assert.equal(await client.evaluate('!!cases.systemRow("g1")'), false);
+      assert.equal(await client.evaluate('!!window.cases.systemRow("g1")'), false);
       await key(' ', 'Space', 32); await delay(80);
       assert.equal(await client.evaluate('document.activeElement.getAttribute("aria-expanded")'), 'true');
-      assert.equal(await client.evaluate('!!cases.systemRow("g1")'), true);
-      await client.evaluate('cases.systemRow("g1").querySelector("button").focus(); document.getElementById("group-toggle-multi").click()');
+      assert.equal(await client.evaluate('!!window.cases.systemRow("g1")'), true);
+      await client.evaluate('window.cases.systemRow("g1").querySelector("button").focus(); document.getElementById("group-toggle-multi").click()');
       assert.equal(await client.evaluate('document.activeElement.id'), 'group-toggle-multi');
       pass('项目 Enter/Space 原地展开收起，隐藏组内焦点返回项目按钮');
       if (platform === 'web') {
@@ -134,7 +149,7 @@ try {
         await client.send('Page.reload', { ignoreCache: true }); await delay(400);
       }
       for (const scope of ['group', 'system']) {
-        const url = await client.evaluate(`cases.startLan('${scope}')`);
+        const url = await client.evaluate(`window.cases.startLan('${scope}')`);
         let snapshot;
         if (platform === 'web') snapshot = webLanSnapshot;
         else {
@@ -153,15 +168,15 @@ try {
             const response = await fetch(`${base.origin}/api/upload?token=${token}&projectId=g2&assetId=asset&itemId=item`, { method: 'POST', headers: { 'content-type': 'image/png', 'x-file-name': 'qa.png' }, body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=', 'base64') });
             assert.equal(response.status, 201, await response.text());
           }
-          await client.evaluate('cases.verifyLanImage()');
+          await client.evaluate('window.cases.verifyLanImage()');
         }
-        await client.evaluate('cases.stopLan()');
+        await client.evaluate('window.cases.stopLan()');
         pass(`${scope} 采集范围${scope === 'group' ? '、上传写入正确系统与计数更新' : '仅包含所选系统'}`);
       }
       for (const kind of ['independent', 'groups']) {
-        await client.evaluate(`cases.prepareDefault('${kind}')`);
+        await client.evaluate(`window.cases.prepareDefault('${kind}')`);
         await client.send('Page.reload', { ignoreCache: true }); await delay(400);
-        await client.evaluate('cases.until(() => document.querySelector("[aria-busy=\\"false\\"]"), "默认页签加载")');
+        await client.evaluate('window.cases.until(() => document.querySelector("[aria-busy=\\"false\\"]"), "默认页签加载")');
         assert.equal(await client.evaluate('document.querySelector("#project-list-title").textContent'), kind === 'independent' ? '独立系统' : '多系统项目');
         pass(kind === 'independent' ? '仅有独立系统时默认独立页签' : '空库默认项目页签及空态');
       }

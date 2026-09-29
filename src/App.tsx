@@ -17,6 +17,7 @@ import type { CheckItemTemplate } from './types';
 import type { ValidationMissing } from './utils/wordExport';
 import { detectLanBridge } from './utils/lanBridge';
 import { buildGroupSnapshot } from './utils/lanGroupSnapshot';
+import PresetDialog from './components/project-list/PresetDialog';
 import { saveLanImageToProject } from './utils/lanImageSink';
 import { useToast } from './components/Toast';
 import { recordError, setErrorNotifier } from './utils/errorLog';
@@ -51,7 +52,7 @@ const AppContent: React.FC<AppContentProps> = ({
   onOpenLanCollector,
   onRegisterLanBinding,
 }) => {
-  const { loaded, meta, categories, assets } = useAppState();
+  const { loaded, meta, profile, categories, assets } = useAppState();
   const { addImageAndSave, projectGroupId } = useAppContext();
   const dispatch = useDispatch();
   const showToast = useToast();
@@ -92,12 +93,16 @@ const AppContent: React.FC<AppContentProps> = ({
       setValidationOpen(true);
     } else {
       try {
-        await exportWordReport(meta, categories, assets, projectId);
+        await exportWordReport(meta, categories, assets, projectId, profile);
       } catch (err) {
         showToast(`导出失败：${err instanceof Error ? err.message : '未知错误'}`, 'error');
       }
     }
-  }, [meta, categories, assets, projectId, showToast]);
+  }, [meta, profile, categories, assets, projectId, showToast]);
+
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false);
+  const projectPreset = useMemo(() => ({ version: 1 as const, name: meta.projectName.trim() || meta.systemName.trim() || '项目模板', categories, profile }), [meta.projectName, meta.systemName, categories, profile]);
+  const handleSavePreset = useCallback(() => setPresetDialogOpen(true), []);
 
   const handleSaveTemplates = useCallback(
     (categoryId: string, items: CheckItemTemplate[]) => {
@@ -109,11 +114,11 @@ const AppContent: React.FC<AppContentProps> = ({
   const handleContinueExport = useCallback(async () => {
     setValidationOpen(false);
     try {
-      await exportWordReport(meta, categories, assets, projectId);
+      await exportWordReport(meta, categories, assets, projectId, profile);
     } catch (err) {
       showToast(`导出失败：${err instanceof Error ? err.message : '未知错误'}`, 'error');
     }
-  }, [meta, categories, assets, projectId, showToast]);
+  }, [meta, profile, categories, assets, projectId, showToast]);
 
   if (!loaded) {
     return (
@@ -135,6 +140,7 @@ const AppContent: React.FC<AppContentProps> = ({
           onOpenProjectInfo={() => setProjectInfoOpen(true)}
           onExportWord={handleExportWord}
           onManageTemplates={() => setTemplateDialogOpen(true)}
+          onSavePreset={handleSavePreset}
           onOpenLanCollector={lanEnabled ? onOpenLanCollector : undefined}
           lanSessionRunning={lanSessionRunning}
         />
@@ -144,6 +150,7 @@ const AppContent: React.FC<AppContentProps> = ({
         open={projectInfoOpen}
         onClose={() => setProjectInfoOpen(false)}
       />
+      <PresetDialog open={presetDialogOpen} projectMode preset={projectPreset} onClose={() => setPresetDialogOpen(false)} onSaved={() => { setPresetDialogOpen(false); showToast('已设为新建默认', 'success'); }} onError={(message) => showToast(message, 'error')} />
       <TemplateDialog
         isOpen={templateDialogOpen}
         onClose={() => setTemplateDialogOpen(false)}

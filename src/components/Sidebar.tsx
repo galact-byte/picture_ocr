@@ -62,6 +62,9 @@ const Sidebar: React.FC = () => {
   const dispatch = useDispatch();
   const [renamingAssetId, setRenamingAssetId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [categoryName, setCategoryName] = useState('');
+  const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null);
   const [addingToCategoryId, setAddingToCategoryId] = useState<string | null>(null);
   const [newAssetName, setNewAssetName] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
@@ -104,6 +107,19 @@ const Sidebar: React.FC = () => {
     setExpandedCategories(next);
     // Also set it as the active category for content area
     dispatch({ type: 'SET_ACTIVE_CATEGORY', payload: catId });
+  };
+
+  const handleAddCategory = () => {
+    if (!categoryName.trim()) return;
+    dispatch({ type: 'ADD_CATEGORY', payload: { name: categoryName, categoryType: 'checklist' } });
+    setCategoryName('');
+    setAddingCategory(false);
+  };
+
+  const handleRenameCategory = (categoryId: string) => {
+    if (categoryName.trim()) dispatch({ type: 'RENAME_CATEGORY', payload: { categoryId, name: categoryName } });
+    setCategoryName('');
+    setRenamingCategoryId(null);
   };
 
   const handleAddAsset = () => {
@@ -222,10 +238,14 @@ const Sidebar: React.FC = () => {
           <p className="text-xs text-slate-500">证据分类导航</p>
         </div>
       </div>
-      <div className="flex items-center justify-between px-6 py-4 text-xs font-semibold text-slate-500">
+      <div className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-slate-500">
         <span>分类导航</span>
-        <span className="text-lg leading-none text-slate-600">+</span>
+        <button type="button" aria-label="新增分类" onClick={() => { setAddingCategory(true); setRenamingCategoryId(null); setCategoryName(''); }} className="min-h-11 min-w-11 text-lg text-slate-400 hover:text-white">+</button>
       </div>
+      {addingCategory && <div className="mx-4 mb-3 space-y-2">
+        <label className="block text-sm text-slate-300">分类名称<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') setAddingCategory(false); }} className="mt-1 min-h-11 w-full border border-slate-600 bg-slate-800 px-2 text-white" /></label>
+        <div className="flex justify-end gap-2"><button type="button" onClick={() => setAddingCategory(false)} className="min-h-11 px-3 text-sm text-slate-300">取消</button><button type="button" disabled={!categoryName.trim()} onClick={handleAddCategory} className="min-h-11 px-3 text-sm text-blue-300 disabled:opacity-50">确定</button></div>
+      </div>}
       {categories.map((cat) => {
         const isActive = cat.id === activeCategoryId;
         const catAssets = getAssetsForCategory(assets, cat.id);
@@ -253,7 +273,7 @@ const Sidebar: React.FC = () => {
                 >
                   {renderCategoryIcon(cat.id)}
                 </svg>
-                <span className="font-medium truncate" title={cat.name}>{cat.name}</span>
+                <button type="button" onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }} className="min-h-11 min-w-0 truncate text-left font-medium" title={cat.name}>{cat.name}</button>
                 {catAssets.length > 0 && (
                   <span className="text-xs text-slate-300 bg-slate-800 rounded-[2px] px-2 py-0.5">
                     {catAssets.length}
@@ -261,7 +281,9 @@ const Sidebar: React.FC = () => {
                 )}
               </div>
 
-              {/* Add asset button */}
+              <div className="flex items-center gap-1">
+                <button type="button" aria-label={`重命名分类 ${cat.name}`} onClick={(e) => { e.stopPropagation(); setAddingCategory(false); setRenamingCategoryId(cat.id); setCategoryName(cat.name); }} className="flex min-h-11 min-w-11 items-center justify-center text-slate-400 hover:text-blue-300" title="重命名分类"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5" /></svg></button>
+                {/* Add asset button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -276,7 +298,12 @@ const Sidebar: React.FC = () => {
                 </svg>
               </button>
             </div>
+            </div>
 
+            {renamingCategoryId === cat.id && <div className="mx-4 mb-3 space-y-2">
+              <label className="block text-sm text-slate-300">分类名称<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleRenameCategory(cat.id); if (e.key === 'Escape') setRenamingCategoryId(null); }} className="mt-1 min-h-11 w-full border border-slate-600 bg-slate-800 px-2 text-white" /></label>
+              <div className="flex justify-end gap-2"><button type="button" onClick={() => setRenamingCategoryId(null)} className="min-h-11 px-3 text-sm text-slate-300">取消</button><button type="button" disabled={!categoryName.trim()} onClick={() => handleRenameCategory(cat.id)} className="min-h-11 px-3 text-sm text-blue-300 disabled:opacity-50">确定</button></div>
+            </div>}
             {/* Expanded: show assets + add input */}
             {isExpanded && (
               <div className="bg-slate-950/40 py-1">

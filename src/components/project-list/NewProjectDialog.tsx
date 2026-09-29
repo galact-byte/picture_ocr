@@ -57,7 +57,7 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, title, descri
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">项目名称（选填）</label>
-            <input className={inputClass} value={form.projectName} onChange={(event) => onFormChange({ ...form, projectName: event.target.value })} placeholder="例：XX系统等保测评" />
+            <input className={inputClass} value={form.projectName} onChange={(event) => onFormChange({ ...form, projectName: event.target.value })} placeholder="例：设备巡检项目" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">单位名称 <span className="text-red-600">*</span></label>

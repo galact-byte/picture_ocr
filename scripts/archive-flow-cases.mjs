@@ -65,12 +65,16 @@ export async function run() {
 
   const seedSystem = async (name, images = [['img-1', 'a.png', PNG], ['img-2', 'b.jpg', JPG]]) => {
     const [doc] = await db.createProjectGroupWithSystems({ projectCode: 'C1', projectName: '', unitName: '某单位', reportDate: '2026-09-01' }, [name]);
-    const asset = doc.assets[0];
-    const item = asset.items[0];
+    const asset = { id: `asset-${name}`, name, categoryId: doc.categories[0].id, items: [{ id: `item-${name}`, label: '截图', required: false, fromTemplateId: null, images: [] }] };
+    doc.profile = { reportTitle: '设备巡检报告', exportFilePrefix: '巡检', unitFieldLabel: '客户', unitFieldRequired: false };
+    await db.saveProjectWithImages({ ...doc, assets: [asset] });
+    const seeded = await db.loadProject(doc.id);
+    const seededAsset = seeded.assets[0];
+    const item = seededAsset.items[0];
     for (const [id, fileName, data] of images) {
-      await db.addImageToProject(doc.id, asset.id, item.id, { id, fileName, data, caption: id, uploadedAt: '2026-01-01T00:00:00.000Z' });
+      await db.addImageToProject(seeded.id, seededAsset.id, item.id, { id, fileName, data, caption: id, uploadedAt: '2026-01-01T00:00:00.000Z' });
     }
-    return { id: doc.id, groupId: doc.groupId, assetId: asset.id, itemId: item.id };
+    return { id: seeded.id, groupId: seeded.groupId, assetId: seededAsset.id, itemId: item.id };
   };
 
   await test('文件名：组显示名回退单位名、非法字符净化、时间戳', async () => {
@@ -105,6 +109,7 @@ export async function run() {
     check('摘要带归档标记', (await rawRead('projectSummaries', main.id)).archive?.fingerprint === after.archive.fingerprint);
     const opened = await fmt.openArchive(await (await dir.getFileHandle(archivedName)).getFile());
     check('磁盘文件指纹与标记一致', opened.manifest.fingerprint === after.archive.fingerprint);
+    check('归档文件保留完整项目配置', JSON.stringify(opened.packageManifest.profile) === JSON.stringify(before.profile));
     check('归档后无未完成写入', !hasPendingWrites());
     window.__originals = originals;
   });
@@ -138,6 +143,8 @@ export async function run() {
     }));
     check('文档标记清除', (await rawRead('projects', main.id)).archive == null);
     check('摘要标记清除', (await rawRead('projectSummaries', main.id)).archive == null);
+    const expectedProfile = { reportTitle: '设备巡检报告', exportFilePrefix: '巡检', unitFieldLabel: '客户', unitFieldRequired: false };
+    check('恢复文档和摘要保留项目配置', JSON.stringify((await rawRead('projects', main.id)).profile) === JSON.stringify(expectedProfile) && JSON.stringify((await rawRead('projectSummaries', main.id)).profile) === JSON.stringify(expectedProfile));
     check('恢复后无未完成写入', !hasPendingWrites());
     const plan = await db.reconcileProjectImages(main.id);
     check('恢复后对账无缺失', plan.missing.length === 0 && !plan.archived);
@@ -224,7 +231,7 @@ export async function run() {
   await test('未整理（内联）系统：先整理再归档', async () => {
     const legacy = db.createProjectDocument();
     legacy.meta = { ...legacy.meta, projectName: '老项目', systemName: '老系统' };
-    legacy.assets[0].items[0].images = [{ id: 'old-1', fileName: 'o.png', data: PNG, caption: '', uploadedAt: '2025-01-01T00:00:00.000Z' }];
+    legacy.assets = [{ id: 'legacy-asset', name: '老系统', categoryId: legacy.categories[0].id, items: [{ id: 'legacy-item', label: '截图', required: false, fromTemplateId: null, images: [{ id: 'old-1', fileName: 'o.png', data: PNG, caption: '', uploadedAt: '2025-01-01T00:00:00.000Z' }] }] }];
     await db.saveProject(legacy);
     check('前提：文档内联字节', typeof (await rawRead('projects', legacy.id)).assets[0].items[0].images[0].data === 'string');
     const outcome = await archiveProject(legacy.id, memoryTarget());

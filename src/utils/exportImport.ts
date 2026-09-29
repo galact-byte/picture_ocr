@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { decryptEvidenceBlob, encryptEvidenceBlob } from './evidencePackage';
 import { blobToDataUrl, compressImageBlob, dataUrlToBlob } from './imageCompression';
 import { hydrateAssets } from './db';
+import { LEGACY_PROFILE, normalizeProfile, parseProfile, sanitizeFileNamePart } from './preset';
 import type {
   ProjectMeta,
   Category,
@@ -10,6 +11,7 @@ import type {
   ImageData,
   ExportPackage,
   AssetExport,
+  ProjectProfile,
 } from '../types';
 
 // ==================== Export ====================
@@ -41,9 +43,10 @@ function buildExportAssets(
 export async function createDataPackageBlob(
   meta: ProjectMeta,
   categories: Category[],
-  assets: Asset[]
+  assets: Asset[],
+  profile?: ProjectProfile
 ): Promise<Blob> {
-  return buildDataPackageZip(meta, categories, assets).zip.generateAsync({ type: 'blob' });
+  return buildDataPackageZip(meta, categories, assets, profile).zip.generateAsync({ type: 'blob' });
 }
 
 /**
@@ -53,7 +56,8 @@ export async function createDataPackageBlob(
 export function buildDataPackageZip(
   meta: ProjectMeta,
   categories: Category[],
-  assets: Asset[]
+  assets: Asset[],
+  profile?: ProjectProfile
 ): { zip: JSZip; manifest: ExportPackage } {
   const zip = new JSZip();
   const imageFolder = zip.folder('images');
@@ -61,6 +65,7 @@ export function buildDataPackageZip(
   // Build manifest
   const exportPackage: ExportPackage = {
     meta,
+    profile: normalizeProfile(profile),
     categories: categories.map((cat) => ({
       id: cat.id,
       name: cat.name,
@@ -110,12 +115,13 @@ export async function exportDataPackage(
   meta: ProjectMeta,
   categories: Category[],
   assets: Asset[],
-  projectId: string
+  projectId: string,
+  profile?: ProjectProfile
 ): Promise<void> {
   // 字节已拆到独立 store，导出前补齐，否则数据包里只有图片元数据。
-  const content = await createDataPackageBlob(meta, categories, await hydrateAssets(projectId, assets));
+  const content = await createDataPackageBlob(meta, categories, await hydrateAssets(projectId, assets), profile);
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  downloadBlob(content, `测评证据_${meta.unitName || '未命名'}_${dateStr}.zip`);
+  downloadBlob(content, `${sanitizeFileNamePart(profile?.exportFilePrefix ?? '证据采集', '证据采集')}_${sanitizeFileNamePart(meta.unitName, '未命名')}_${dateStr}.zip`);
 }
 
 export async function exportEncryptedDataPackage(
@@ -123,12 +129,13 @@ export async function exportEncryptedDataPackage(
   categories: Category[],
   assets: Asset[],
   password: string,
-  projectId: string
+  projectId: string,
+  profile?: ProjectProfile
 ): Promise<void> {
-  const zip = await createDataPackageBlob(meta, categories, await hydrateAssets(projectId, assets));
+  const zip = await createDataPackageBlob(meta, categories, await hydrateAssets(projectId, assets), profile);
   const encryptedPackage = await encryptEvidenceBlob(zip, password);
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  downloadBlob(encryptedPackage, `测评采集包_${meta.systemName || meta.projectName || '未命名系统'}_${dateStr}.evidence`);
+  downloadBlob(encryptedPackage, `${sanitizeFileNamePart(profile?.exportFilePrefix ?? '证据采集', '证据采集')}_${sanitizeFileNamePart(meta.systemName || meta.projectName, '未命名系统')}_${dateStr}.evidence`);
 }
 
 // ==================== Import ====================
@@ -140,6 +147,7 @@ export interface ImportResult {
     meta: ProjectMeta;
     categories: Category[];
     assets: Asset[];
+    profile: ProjectProfile;
   };
 }
 
@@ -148,7 +156,8 @@ export async function importDataPackage(
   mode: 'overwrite' | 'merge',
   existingAssets: Asset[],
   existingCategories: Category[],
-  existingMeta: ProjectMeta
+  existingMeta: ProjectMeta,
+  existingProfile?: ProjectProfile
 ): Promise<ImportResult> {
   try {
     const zip = await JSZip.loadAsync(file);
@@ -234,6 +243,7 @@ export async function importDataPackage(
           meta: normalizeImportedMeta(exportPkg.meta),
           categories: newCategories,
           assets: newAssets,
+          profile: exportPkg.profile === undefined ? { ...LEGACY_PROFILE } : parseProfile(exportPkg.profile),
         },
       };
     }
@@ -253,6 +263,7 @@ export async function importDataPackage(
           meta: existingMeta,
           categories: mergedCategories,
           assets: mergedAssets,
+          profile: normalizeProfile(existingProfile),
         },
       };
     }
@@ -273,11 +284,12 @@ export async function importEncryptedDataPackage(
   mode: 'overwrite' | 'merge',
   existingAssets: Asset[],
   existingCategories: Category[],
-  existingMeta: ProjectMeta
+  existingMeta: ProjectMeta,
+  existingProfile?: ProjectProfile
 ): Promise<ImportResult> {
   try {
     const zipBlob = await decryptEvidenceBlob(file, password);
-    return importDataPackage(zipBlob, mode, existingAssets, existingCategories, existingMeta);
+    return importDataPackage(zipBlob, mode, existingAssets, existingCategories, existingMeta, existingProfile);
   } catch (err) {
     return {
       success: false,

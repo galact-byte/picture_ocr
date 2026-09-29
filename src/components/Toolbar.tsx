@@ -6,6 +6,7 @@ interface ToolbarProps {
   onOpenProjectInfo: () => void;
   onExportWord: () => void;
   onManageTemplates: () => void;
+  onSavePreset: () => void;
   onOpenLanCollector?: () => void;
   lanSessionRunning: boolean;
 }
@@ -15,6 +16,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onOpenProjectInfo,
   onExportWord,
   onManageTemplates,
+  onSavePreset,
   onOpenLanCollector,
   lanSessionRunning,
 }) => {
@@ -35,7 +37,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </button>
         <div className="h-7 w-px bg-slate-200" />
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-lg font-bold text-slate-950">测评证据采集平台</h1>
+          <h1 className="text-lg font-bold text-slate-950">证据采集平台</h1>
           <span className="text-slate-300">|</span>
           <span className="text-sm text-slate-600">项目：{projectTitle}</span>
         </div>
@@ -57,6 +59,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
           </svg>
           模板管理
         </button>
+        <button
+          onClick={onSavePreset}
+          className="inline-flex items-center gap-1.5 rounded-[2px] border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+        >另存为预设</button>
+
         <button
           onClick={onExportWord}
           className="inline-flex items-center gap-1.5 rounded-[2px] border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"

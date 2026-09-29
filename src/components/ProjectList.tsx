@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectDocument, ProjectGroup, ProjectGroupSummary, ProjectMeta, ProjectSummary } from '../types';
 import {
   createProjectGroupWithSystems,
@@ -15,6 +15,7 @@ import {
   saveProjectWithImages,
   hydrateProjectImages,
   updateProjectGroupAndSystems,
+  getDefaultPreset,
 } from '../utils/db';
 import { exportDataPackage, importDataPackage, importEncryptedDataPackage } from '../utils/exportImport';
 import { isEvidencePackageFile } from '../utils/evidencePackage';
@@ -34,6 +35,8 @@ import { splitProjectViews, filterGroups, filterSystems, filterGroupSystems, syn
 import ProjectGroupDialog, { type ProjectGroupDialogMode } from './project-list/ProjectGroupDialog';
 import { useConfirmDialog } from './ConfirmDialog';
 import { useToast } from './Toast';
+import { DEFAULT_PRESET, normalizeProfile } from '../utils/preset';
+import PresetDialog from './project-list/PresetDialog';
 interface ProjectListProps {
   viewState: ProjectListViewState;
   onViewStateChange: React.Dispatch<React.SetStateAction<ProjectListViewState>>;
@@ -67,6 +70,10 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
   const [pendingReveal, setPendingReveal] = useState<{ groupId: string | null; systemId: string } | null>(null);
   const [importTargetId, setImportTargetId] = useState<string | null>(null);
   const [dialogState, setDialogState] = useState<DialogState | null>(null);
+  const [preset, setPreset] = useState(DEFAULT_PRESET);
+  const [presetLoading, setPresetLoading] = useState(true);
+  const [presetError, setPresetError] = useState('');
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [storageSettingsOpen, setStorageSettingsOpen] = useState(false);
   const [compressingSystemId, setCompressingSystemId] = useState<string | null>(null);
@@ -76,6 +83,11 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
   const { confirm, dialog } = useConfirmDialog();
   const showToast = useToast();
   const reminder = useStorageReminder(groups, loaded && !loading && !loadError);
+  const needsPreset = dialogState?.mode === 'create-group' || dialogState?.mode === 'add-system';
+  const dialogProfile = dialogState?.mode === 'create-group' ? preset.profile
+    : normalizeProfile(dialogState?.system?.profile ?? dialogState?.group?.profile);
+  const groupMembersRequired = dialogState?.mode === 'edit-group' && groups
+    .find((summary) => summary.id === dialogState.group?.id)?.systems.some((system) => normalizeProfile(system.profile).unitFieldRequired);
 
   // 桌面版：启动时若自定义数据目录不可用已回退默认，提示一次。
   useEffect(() => {
@@ -117,6 +129,15 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
       setLoading(false);
     }
   };
+
+  const refreshPreset = useCallback(async () => {
+    setPresetLoading(true);
+    setPresetError('');
+    try { setPreset(await getDefaultPreset()); }
+    catch (error) { setPresetError(`读取模板预设失败：${error instanceof Error ? error.message : '未知错误'}`); }
+    finally { setPresetLoading(false); }
+  }, []);
+  useEffect(() => { void refreshPreset(); }, [refreshPreset]);
 
   useEffect(() => { void refreshProjects(); }, []);
 
@@ -313,7 +334,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
     try {
       const document = await loadProject(system.id);
       if (!document) { showToast('导出失败：系统不存在或已被删除', 'error'); return; }
-      await exportDataPackage(document.meta, document.categories, document.assets, document.id);
+      await exportDataPackage(document.meta, document.categories, document.assets, document.id, document.profile);
     } catch (err) {
       showToast(`导出失败：${err instanceof Error ? err.message : '未知错误'}`, 'error');
     }
@@ -361,8 +382,8 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
       const targetDocument = await loadProject(importTargetId);
       if (!targetDocument) return { success: false, message: '导入失败：目标系统不存在或已被删除' };
       const result = isEvidencePackageFile(file)
-        ? await importEncryptedDataPackage(file, password, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta)
-        : await importDataPackage(file, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta);
+        ? await importEncryptedDataPackage(file, password, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta, targetDocument.profile)
+        : await importDataPackage(file, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta, targetDocument.profile);
       if (!result.success || !result.data) return { success: false, message: result.message };
       const group = targetDocument.groupId ? await getGroupForSystem(targetDocument.groupId) : null;
       const meta: ProjectMeta = group && mode === 'overwrite'
@@ -374,6 +395,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
         meta,
         categories: result.data.categories,
         assets: result.data.assets,
+        profile: result.data.profile,
         createdAt: targetDocument.createdAt,
         updatedAt: Date.now(),
       };
@@ -391,22 +413,22 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
   };
 
   const handleSaveDialog = async (values: { projectCode: string; projectName: string; unitName: string; reportDate: string; systemName: string }): Promise<boolean> => {
-    if (!dialogState || saving) return false;
+    if (!dialogState || saving || (needsPreset && (presetLoading || presetError))) return false;
     setSaving(true);
     try {
       let createdSystem: { groupId: string | null; systemId: string } | null = null;
       if (dialogState.mode === 'create-group') {
         const systemNames = splitSystemNames(values.systemName);
         if (systemNames.length === 1) {
-          const document = createProjectDocument({ ...values, systemName: systemNames[0] });
+          const document = createProjectDocument({ ...values, systemName: systemNames[0] }, null, preset);
           await saveProject(document);
           createdSystem = { groupId: null, systemId: document.id };
         } else {
-          const systems = await createProjectGroupWithSystems(values, systemNames);
+          const systems = await createProjectGroupWithSystems({ ...values, profile: preset.profile }, systemNames, preset);
           if (systems[0]) createdSystem = { groupId: systems[0].groupId, systemId: systems[0].id };
         }
       } else if (dialogState.mode === 'add-system' && dialogState.group) {
-        const system = await createSystemForGroup(dialogState.group, values.systemName);
+        const system = await createSystemForGroup(dialogState.group, values.systemName, preset);
         createdSystem = { groupId: dialogState.group.id, systemId: system.id };
       } else if (dialogState.mode === 'edit-group' && dialogState.group) {
         await updateProjectGroupAndSystems({
@@ -501,7 +523,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <ProjectListHeader search={search} searchLabel={isGroupList ? '搜索项目或组内系统' : '搜索当前列表的系统'} showSelection={!isGroupList} selectedCount={selectedSystems.length} onSearchChange={changeSearch} onDeleteSelected={handleDeleteSelectedProjects} onCreateProject={() => setDialogState({ mode: 'create-group', group: null, system: null })} onOpenStorageSettings={() => setStorageSettingsOpen(true)} />
+      <ProjectListHeader search={search} searchLabel={isGroupList ? '搜索项目或组内系统' : '搜索当前列表的系统'} showSelection={!isGroupList} selectedCount={selectedSystems.length} onSearchChange={changeSearch} onDeleteSelected={handleDeleteSelectedProjects} onCreateProject={() => setDialogState({ mode: 'create-group', group: null, system: null })} onOpenStorageSettings={() => setStorageSettingsOpen(true)} onOpenPresetSettings={() => setPresetDialogOpen(true)} />
       <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-8">
         <h2 className="mb-4 text-2xl font-bold text-slate-950">项目管理中心</h2>
         {reminder.result && reminder.result.level !== 'none' && <StorageReminderBanner result={reminder.result} onSnooze={reminder.snooze}
@@ -522,7 +544,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
           <div key={locationKey + search} aria-busy={loading} className={isGroupList ? 'space-y-4' : 'rounded-lg border border-slate-200 bg-white shadow-sm'}>
             {!isGroupList && <div className={`grid ${SYSTEM_LIST_GRID} items-center gap-3 border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 sm:px-4`}>
               <label className="flex min-h-11 items-center justify-center"><input aria-label="全选当前可见系统" type="checkbox" checked={allFilteredSelected} onChange={() => toggleAllFilteredProjects(filteredSystems, null)} disabled={filteredSystems.length === 0} className="h-4 w-4" /></label>
-              <span>系统名称</span><span className="hidden lg:block">单位名称</span><span className="hidden lg:block">最后更新</span><span className="hidden text-center lg:block">资产数</span><span className="hidden text-right md:block">操作</span>
+              <span>系统名称</span><span className="hidden lg:block">归属</span><span className="hidden lg:block">最后更新</span><span className="hidden text-center lg:block">资产数</span><span className="hidden text-right md:block">操作</span>
             </div>}
             {!loaded ? <p className="px-6 py-12 text-center text-sm text-slate-600">{loading ? '正在加载项目列表…' : '列表尚未加载，请重试。'}</p>
               : (isGroupList ? filteredGroups.length : filteredSystems.length) === 0 ? <div className="px-6 py-12 text-center text-sm text-slate-600"><p>{emptyMessage}</p>{search.trim() && <button type="button" onClick={() => changeSearch('')} className={`${actionButton} mt-3 border-slate-300 text-slate-700 hover:bg-slate-100`}>清除搜索</button>}</div>
@@ -572,7 +594,8 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
           </div>
         </section>
       </main>
-      <ProjectGroupDialog open={!!dialogState} mode={dialogState?.mode ?? 'create-group'} group={dialogState?.group ?? null} system={dialogState?.system?.meta ?? null} onClose={() => { if (!saving) setDialogState(null); }} onSave={handleSaveDialog} />
+      <PresetDialog open={presetDialogOpen} preset={preset} loading={presetLoading} error={presetError} onRetry={refreshPreset} onClose={() => setPresetDialogOpen(false)} onSaved={(next) => { setPreset(next); setPresetError(''); setPresetLoading(false); setPresetDialogOpen(false); showToast(`已设为默认预设：${next.name}`, 'success'); }} onError={(message) => showToast(message, 'error')} />
+      <ProjectGroupDialog open={!!dialogState} mode={dialogState?.mode ?? 'create-group'} group={dialogState?.group ?? null} system={dialogState?.system?.meta ?? null} onClose={() => { if (!saving) setDialogState(null); }} onSave={handleSaveDialog} unitFieldLabel={dialogProfile.unitFieldLabel} unitFieldRequired={dialogProfile.unitFieldRequired || Boolean(groupMembersRequired)} loading={needsPreset && presetLoading} loadError={needsPreset ? presetError : ''} onRetry={refreshPreset} />
       <ImportDialog isOpen={!!importTargetId} targetProjectName={importTarget ? getImportTargetName(importTarget) : '未知系统'} onClose={() => setImportTargetId(null)} onImportOverwrite={(file, password) => importIntoSystem(file, password, 'overwrite')} onImportMerge={(file, password) => importIntoSystem(file, password, 'merge')} />
       {storageSettingsOpen && <StorageSettingsDialog onClose={() => setStorageSettingsOpen(false)} onOpenArchive={() => { setStorageSettingsOpen(false); setArchiveDialog({}); }} onReminderSettingsChanged={reminder.recheck} />}
       {archiveDialog && <ArchiveDialog groups={groups} initialSelectedIds={archiveDialog.initialSelectedIds} onClose={() => setArchiveDialog(null)} onArchived={() => { void refreshProjects(); reminder.recheck(); }} />}

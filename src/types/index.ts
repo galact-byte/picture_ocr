@@ -1,3 +1,18 @@
+/** 项目创建时的报告与表单配置快照。 */
+export interface ProjectProfile {
+  reportTitle: string;
+  exportFilePrefix: string;
+  unitFieldLabel: string;
+  unitFieldRequired: boolean;
+}
+
+export interface ProjectPreset {
+  version: 1;
+  name: string;
+  categories: Category[];
+  profile: ProjectProfile;
+}
+
 /** 项目元数据 */
 export interface ProjectMeta {
   projectCode: string;
@@ -73,6 +88,7 @@ export interface ArchiveInfo {
 
 /** IndexedDB 存储的完整项目文档 */
 export interface ProjectDocument {
+  profile?: ProjectProfile;
   id: string;
   /** 所属项目组；旧项目没有该字段时为 null，仍作为独立系统正常使用。 */
   groupId: string | null;
@@ -87,6 +103,7 @@ export interface ProjectDocument {
 
 /** 项目组（母项目）元数据。系统名称及证据数据保存在各系统子项目中。 */
 export interface ProjectGroup {
+  profile?: ProjectProfile;
   id: string;
   projectCode: string;
   projectName: string;
@@ -98,6 +115,7 @@ export interface ProjectGroup {
 
 /** 项目列表中的系统子项目摘要 */
 export interface ProjectSummary {
+  profile?: ProjectProfile;
   id: string;
   groupId: string | null;
   meta: ProjectMeta;
@@ -150,6 +168,7 @@ export interface ImageRef {
 
 /** 导出包结构 */
 export interface ExportPackage {
+  profile?: ProjectProfile;
   meta: ProjectMeta;
   categories: CategoryExport[];
 }

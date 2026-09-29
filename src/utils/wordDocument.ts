@@ -1,4 +1,5 @@
-import type { Asset, Category, ImageData, ProjectMeta } from '../types';
+import type { Asset, Category, ImageData, ProjectMeta, ProjectProfile } from '../types';
+import { LEGACY_PROFILE } from './preset';
 import type { ImageRun, Paragraph, Table, TableCell, TableRow, TextRun } from 'docx';
 
 let docx: typeof import('docx');
@@ -146,7 +147,7 @@ function formatChineseSectionNumber(index: number): string {
 
 // ==================== Cover Page ====================
 
-async function buildCoverPage(meta: ProjectMeta): Promise<Paragraph[]> {
+async function buildCoverPage(meta: ProjectMeta, profile: ProjectProfile): Promise<Paragraph[]> {
   let decorationImage: ImageRun | null = null;
   try {
     const { buffer, type } = await fetchImageAsBuffer((await import('../assets/cover-decoration.png')).default);
@@ -164,12 +165,12 @@ async function buildCoverPage(meta: ProjectMeta): Promise<Paragraph[]> {
   // 模板封面采用“标题 / Logo / 单位日期”三段式；标题靠上，单位和日期靠近页底。
   result.push(new docx.Paragraph({ spacing: { before: 1600 } }));
 
-  // Title: 测评证据截图要求 (36pt bold, center)
+  // 报告标题由项目自己的配置快照决定。
   result.push(
     new docx.Paragraph({
       alignment: docx.AlignmentType.CENTER,
       spacing: { after: 60 },
-      children: [new docx.TextRun({ text: '测评证据截图要求', bold: true, size: 72, font: '黑体', color: '000000' })],
+      children: [new docx.TextRun({ text: profile.reportTitle, bold: true, size: 72, font: '黑体', color: '000000' })],
     })
   );
 
@@ -203,7 +204,7 @@ async function buildCoverPage(meta: ProjectMeta): Promise<Paragraph[]> {
     new docx.Paragraph({
       alignment: docx.AlignmentType.CENTER,
       spacing: { after: 60 },
-      children: [new docx.TextRun({ text: meta.unitName || '（请填写单位名称）', size: 44, font: '黑体', color: '000000' })],
+      children: [new docx.TextRun({ text: meta.unitName || (profile.unitFieldRequired ? `（请填写${profile.unitFieldLabel}）` : ''), size: 44, font: '黑体', color: '000000' })],
     })
   );
 
@@ -383,14 +384,15 @@ async function buildAssetSection(
 export async function createWordReportBlob(
   meta: ProjectMeta,
   categories: Category[],
-  assets: Asset[]
+  assets: Asset[],
+  profile: ProjectProfile = LEGACY_PROFILE
 ): Promise<Blob> {
   docx ??= await import('docx');
 
   const sections: (Paragraph | Table)[] = [];
 
   // --- Cover page ---
-  sections.push(...(await buildCoverPage(meta)));
+  sections.push(...(await buildCoverPage(meta, profile)));
   sections.push(new docx.Paragraph({ children: [new docx.PageBreak()] }));
 
   // --- Body ---
@@ -426,7 +428,7 @@ export async function createWordReportBlob(
   }
 
   const doc = new docx.Document({
-    title: '测评证据截图要求',
+    title: profile.reportTitle,
     styles: {
       default: {
         document: {

@@ -20,8 +20,15 @@ export async function run() {
   const makeDoc = () => {
     const doc = db.createProjectDocument();
     doc.meta = { ...doc.meta, projectName: '项目一', systemName: '系统A' };
-    const asset = doc.assets[0];
-    asset.items[0].images = [
+    const asset = {
+      id: 'asset-1',
+      name: '系统A',
+      categoryId: doc.categories[0].id,
+      items: [{ id: 'item-1', label: '截图', required: false, fromTemplateId: null, images: [] }],
+    };
+    doc.assets = [asset];
+    const target = doc.assets[0];
+    target.items[0].images = [
       { id: 'img-1', fileName: 'a.png', data: PNG, caption: '一', uploadedAt: '2026-01-01T00:00:00.000Z' },
       { id: 'img-2', fileName: 'b.png', data: PNG_NAMED, caption: '二', uploadedAt: '2026-01-02T00:00:00.000Z' },
     ];

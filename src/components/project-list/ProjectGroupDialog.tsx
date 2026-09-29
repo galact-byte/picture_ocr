@@ -17,6 +17,11 @@ interface ProjectGroupDialogProps {
     reportDate: string;
     systemName: string;
   }) => Promise<boolean>;
+  unitFieldLabel: string;
+  unitFieldRequired: boolean;
+  loading?: boolean;
+  loadError?: string;
+  onRetry?: () => void;
 }
 
 interface FormValues {
@@ -39,7 +44,7 @@ function createForm(group: ProjectGroup | null, system: ProjectMeta | null): For
   };
 }
 
-const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, group, system, onClose, onSave }) => {
+const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, group, system, onClose, onSave, unitFieldLabel, unitFieldRequired, loading = false, loadError = '', onRetry }) => {
   const [form, setForm] = useState<FormValues>(() => createForm(group, system));
   const [errors, setErrors] = useState<{ unitName?: string; systemName?: string }>({});
   const [saving, setSaving] = useState(false);
@@ -61,10 +66,11 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
   const title = mode === 'create-group' ? '新建项目' : isAddingSystem ? '添加系统' : isEditingGroup ? '编辑项目组信息' : '编辑系统信息';
 
   const handleSave = async () => {
+    if (saving || loading || loadError) return;
     const unitName = form.unitName.trim();
     const systemName = form.systemName.trim();
     const nextErrors = {
-      unitName: unitName ? undefined : '请填写单位名称',
+      unitName: !isSystemOnly && unitFieldRequired && !unitName ? `请填写${unitFieldLabel}` : undefined,
       systemName: isEditingGroup || systemName ? undefined : '请填写系统名称',
     };
     setErrors(nextErrors);
@@ -86,12 +92,14 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
   };
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!saving) onClose(); }}>
+    <div role="dialog" aria-modal="true" aria-labelledby="group-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!saving) onClose(); }}>
       <div className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="border-b border-slate-200 px-6 py-5">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <h2 id="group-dialog-title" className="text-lg font-semibold text-slate-900">{title}</h2>
         </div>
         <div className="space-y-4 px-6 py-5">
+          {loading && <p role="status">正在读取预设…</p>}
+          {loadError && <div role="alert" className="text-sm text-red-700">{loadError}<button type="button" onClick={onRetry} className="ml-3 min-h-11 underline">重试</button></div>}
           {!isSystemOnly && (
             <>
               <div>
@@ -100,10 +108,10 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">项目名称（选填）</label>
-                <input className={inputClass} value={form.projectName} onChange={(event) => setForm({ ...form, projectName: event.target.value })} placeholder="例：XX煤矿等保测评" />
+                <input className={inputClass} value={form.projectName} onChange={(event) => setForm({ ...form, projectName: event.target.value })} placeholder="例：设备巡检项目" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">单位名称 <span className="text-red-600">*</span></label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{unitFieldLabel} {unitFieldRequired && <span className="text-red-600">*</span>}</label>
                 <input className={`${inputClass} ${errors.unitName ? 'border-red-500 focus:border-red-500 focus:ring-red-100' : ''}`} value={form.unitName} onChange={(event) => { setErrors((current) => ({ ...current, unitName: undefined })); setForm({ ...form, unitName: event.target.value }); }} aria-invalid={!!errors.unitName} />
                 {errors.unitName && <p className="mt-1 text-xs text-red-600">{errors.unitName}</p>}
               </div>
@@ -121,7 +129,7 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
           <button onClick={onClose} disabled={saving} className="border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">取消</button>
-          <button onClick={() => void handleSave()} disabled={saving} className="border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{saving ? '保存中...' : '保存'}</button>
+          <button onClick={() => void handleSave()} disabled={saving || loading || !!loadError} className="border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{saving ? '保存中...' : '保存'}</button>
         </div>
       </div>
     </div>

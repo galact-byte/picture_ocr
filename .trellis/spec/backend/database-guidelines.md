@@ -4,7 +4,7 @@
 
 仓库没有服务端数据库、ORM 或服务端迁移系统。所有项目数据保存在浏览器本地 IndexedDB（`src/utils/db.ts`），Web 版与桌面版（Electron 渲染进程）共用同一套代码。局域网服务（`start-server.ps1` / `electron/lanServer.cjs`）只转发上传，不持有数据库。
 
-## IndexedDB 结构（`DB_VERSION = 5`）
+## IndexedDB 结构（`DB_VERSION = 6`）
 
 | store | keyPath | 索引 | 内容 |
 | --- | --- | --- | --- |
@@ -13,10 +13,52 @@
 | `projectGroups` | `id` | `updatedAt` | `ProjectGroup`（项目组元数据） |
 | `projectSummaries` | `id` | `updatedAt` | 列表用轻量摘要（`id/groupId/meta/assetCount/createdAt/updatedAt/archive`），无图片字节 |
 | `images` | `key` | `by_project(projectId)` | 图片字节，主键 `${projectId}:${imageId}` |
+| `settings` | `id` | — | 默认 `ProjectPreset`，固定 key `defaultPreset`，只保存模板与 `ProjectProfile` |
 
-- 数据库名 `evidence-collector-db`。版本一旦发布不可降级回旧代码。
+- `settings` 的记录为 `{ id: 'defaultPreset', preset: { version: 1, name, categories, profile } }`，不包含项目身份、单位值、资产实例或图片；`getDefaultPreset()` 无记录时返回通用默认值，保存/读取必须深拷贝。
+- 预设 JSON 在文件边界执行 version、类型、ID、顺序、数量、文本长度和 1 MiB 限制校验；导入失败不得写入 settings。
 - `onupgradeneeded` 只建表/建索引；遍历数据的回填放在升级完成后（`ensureSummariesSynced`、`migrateInlineImages`），否则一条坏数据会中止 versionchange 并回滚版本。
 - 未迁移的老项目仍可能在 `ImageData.data` 内联 Base64，两种形态共存；读图必须经 `resolveImageData` / `hydrateAssets`，不能直读 `image.data`。
+
+## 预设与项目配置契约
+
+### 1. 范围
+
+应用内导入预设、项目/组创建、项目配置编辑，以及文档/摘要/导出包之间的配置传递。仅新项目采用当前默认，旧项目不随默认改变。
+
+### 2. 接口
+
+- `getDefaultPreset(): Promise<ProjectPreset>`、`saveDefaultPreset(preset): Promise<void>`。
+- `createProjectDocument(meta?, groupId?, preset?)` 是同步工厂；UI 必须先读取预设并传入同一快照。
+- `createSystemForGroup(group, systemName, preset?)` 使用组的 profile；未传 preset 时异步读取默认分类模板。
+- `updateProjectGroupAndSystems(group)` 在读写事务内检查组及成员单位必填规则。
+
+### 3. 数据契约
+
+`ProjectProfile = { reportTitle, exportFilePrefix, unitFieldLabel, unitFieldRequired }`。旧文档/组/旧包使用固定通用标题与前缀、单位名称及必填 true。显式空分类数组不能回填；覆盖导入采用包配置，合并保留目标配置。settings 只在事务 complete 后报告保存成功；列表依旧只读取摘要。
+
+### 4. 校验与错误
+
+| 输入或状态 | 处理 |
+| --- | --- |
+| 无默认记录 | 返回通用默认；单位可选且无示例资产 |
+| 读取失败/坏记录 | reject；创建表单禁止提交并提供重试，不能静默创建通用项目 |
+| JSON 超 1 MiB、版本/字段类型错误 | 拒绝且保留原默认 |
+| 分类或模板 ID 重复、名称/ID 超 500 字符 | 拒绝；模板 ID 在整个预设内唯一 |
+| 组单位为空且组或任一成员必填 | 事务中止，组和成员不变 |
+| 项目设置写入失败 | 表单保留输入；不提前派发配置或报告成功 |
+
+### 5. 正常与边界
+
+导入“巡检”后新建的独立系统使用巡检配置；之前创建的通用系统仍保持通用配置。组内新系统采用当前分类模板和既有组配置。坏预设失败后再次读取仍返回上一个合法默认。
+
+### 6. 验证
+
+`verify-presets.mjs` 校验模型、深拷贝、输入边界及 reducer；`verify-presets-ui.mjs` 在隔离 Web/Electron 验证原生 IDB、组成员规则、失败重试、配置保存重开、ZIP/加密包与 DOCX；`verify:archive-flow` 断言归档清单和恢复后的文档/摘要保留 profile。
+
+### 7. 反例
+
+错误：预设读取 catch 后使用 DEFAULT_PRESET 继续创建；组内新建只调用无 preset 的同步工厂。正确：加载失败阻止创建并允许重试；提交使用表单已加载的快照，组内配置从组获取。
 
 ## 写路径不变量
 

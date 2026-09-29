@@ -9,6 +9,7 @@ interface ProjectListHeaderProps {
   onDeleteSelected: () => void;
   onCreateProject: () => void;
   onOpenStorageSettings: () => void;
+  onOpenPresetSettings: () => void;
 }
 
 const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
@@ -20,6 +21,7 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
   onDeleteSelected,
   onCreateProject,
   onOpenStorageSettings,
+  onOpenPresetSettings,
 }) => {
   return (
     <header className="border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-8">
@@ -32,7 +34,7 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-extrabold uppercase tracking-tight text-blue-700">Evidence Workspace</h1>
-            <p className="text-xs text-slate-500">测评证据采集工具</p>
+            <p className="text-xs text-slate-500">证据采集工具</p>
           </div>
         </div>
 
@@ -73,6 +75,11 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
             </svg>
             <span className="hidden sm:inline">存储设置</span>
           </button>
+          <button
+            onClick={onOpenPresetSettings}
+            className="inline-flex h-11 min-w-11 items-center justify-center gap-2 border border-slate-300 bg-white px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+            title="模板预设"
+          >模板预设</button>
           <button
             onClick={onCreateProject}
             className="inline-flex h-11 min-w-[108px] items-center justify-center gap-2 border border-blue-300 bg-blue-50 px-3 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"

@@ -1,5 +1,6 @@
-import type { ProjectDocument, ProjectMeta, Category, Asset, CheckItem, ImageData, CheckItemTemplate } from '../types';
-import defaultCategories, { createDefaultMeta, createPresetAssets } from '../data/defaults';
+import type { ProjectDocument, ProjectMeta, ProjectProfile, Category, Asset, CheckItem, ImageData, CheckItemTemplate } from '../types';
+import { createDefaultMeta } from '../data/defaults';
+import { DEFAULT_PRESET, GENERIC_PROFILE, normalizeProfile } from '../utils/preset';
 
 // ---- Helper ----
 let idCounter = Date.now();
@@ -11,6 +12,7 @@ export function genId(): string {
 export interface AppState {
   loaded: boolean;
   meta: ProjectMeta;
+  profile: ProjectProfile;
   categories: Category[];
   assets: Asset[];
   activeCategoryId: string | null;
@@ -22,6 +24,9 @@ export type AppAction =
   | { type: 'LOAD_PROJECT'; payload: ProjectDocument }
   | { type: 'CLEAR_PROJECT' }
   | { type: 'SET_META'; payload: ProjectMeta }
+  | { type: 'SET_PROFILE'; payload: ProjectProfile }
+  | { type: 'ADD_CATEGORY'; payload: { name: string; categoryType: Category['type'] } }
+  | { type: 'RENAME_CATEGORY'; payload: { categoryId: string; name: string } }
   | { type: 'ADD_ASSET'; payload: { categoryId: string; assetName: string } }
   | { type: 'REMOVE_ASSET'; payload: { assetId: string } }
   | { type: 'RENAME_ASSET'; payload: { assetId: string; newName: string } }
@@ -55,6 +60,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         loaded: true,
         meta: doc.meta,
+        profile: normalizeProfile(doc.profile),
         categories: doc.categories,
         assets: nextAssets,
         activeCategoryId: activeSelection.categoryId,
@@ -63,12 +69,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case 'CLEAR_PROJECT': {
-      const newCats = cloneCategories(defaultCategories);
-      const newAssets = createPresetAssets(newCats);
+      const newCats = cloneCategories(DEFAULT_PRESET.categories);
+      const newAssets: Asset[] = [];
       return {
         ...state,
         loaded: true,
         meta: createDefaultMeta(),
+        profile: GENERIC_PROFILE,
         categories: newCats,
         assets: newAssets,
         activeCategoryId: null,
@@ -80,6 +87,22 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, meta: action.payload };
     }
 
+    case 'SET_PROFILE': {
+      return { ...state, profile: { ...action.payload } };
+    }
+
+    case 'ADD_CATEGORY': {
+      const name = action.payload.name.trim();
+      if (!name) return state;
+      const category: Category = { id: genId(), name, type: action.payload.categoryType, order: state.categories.length + 1, defaultItems: [] };
+      return { ...state, categories: [...state.categories, category], activeCategoryId: category.id, activeAssetId: null };
+    }
+
+    case 'RENAME_CATEGORY': {
+      const name = action.payload.name.trim();
+      if (!name) return state;
+      return { ...state, categories: state.categories.map((category) => category.id === action.payload.categoryId ? { ...category, name } : category) };
+    }
     case 'SET_ACTIVE_CATEGORY': {
       const categoryId = action.payload;
       const assets = state.assets.filter((a) => a.categoryId === categoryId);
@@ -376,7 +399,8 @@ export function createInitialState(): AppState {
   return {
     loaded: false,
     meta: createDefaultMeta(),
-    categories: cloneCategories(defaultCategories),
+    profile: GENERIC_PROFILE,
+    categories: cloneCategories(DEFAULT_PRESET.categories),
     assets: [],
     activeCategoryId: null,
     activeAssetId: null,
