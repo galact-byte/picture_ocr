@@ -57,3 +57,6 @@ GEMINI.md
 .omc/
 
 presets/dengbao.json
+
+# 本地自用预设（含行业模板），不随源码分发
+/presets/*.json
