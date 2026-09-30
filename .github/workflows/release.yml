@@ -132,7 +132,7 @@ jobs:
           name: picture-ocr-release-assets
           path: |
             ${{ steps.package.outputs.zip_path }}
-            ${{ env.APP_DIR }}/desktop-dist/*
+            ${{ env.APP_DIR }}/desktop-dist/*.exe
           if-no-files-found: error
 
       - name: Create or update GitHub Release
@@ -158,7 +158,13 @@ jobs:
           release_files=("$ZIP_PATH")
           while IFS= read -r -d '' file; do
             release_files+=("$file")
-          done < <(find "$DESKTOP_DIST" -maxdepth 1 -type f -print0)
+          # 只发布安装包，排除 builder-debug.yml 等构建调试文件
+          done < <(find "$DESKTOP_DIST" -maxdepth 1 -type f -name '*.exe' -print0)
+
+          if [ "${#release_files[@]}" -lt 2 ]; then
+            echo "未找到桌面版 exe：$DESKTOP_DIST" >&2
+            exit 1
+          fi
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release edit "$RELEASE_TAG" --title "$RELEASE_TITLE" --notes-file "$NOTES_FILE"
