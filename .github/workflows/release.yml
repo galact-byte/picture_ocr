@@ -104,7 +104,7 @@ jobs:
           cp README.md "release/${PACKAGE_NAME}/README.md"
           cp RELEASE-NOTES.md "release/${PACKAGE_NAME}/RELEASE-NOTES.md"
           cp start-server.ps1 "release/${PACKAGE_NAME}/start-server.ps1"
-          cp '启动测评证据采集工具.bat' "release/${PACKAGE_NAME}/启动测评证据采集工具.bat"
+          cp '启动证据采集工具.bat' "release/${PACKAGE_NAME}/启动证据采集工具.bat"
           printf '%s\n' "$RELEASE_TAG" > "release/${PACKAGE_NAME}/VERSION.txt"
 
           python - <<'PY'
@@ -147,7 +147,7 @@ jobs:
 
           NOTES_FILE="${APP_DIR}/RELEASE-NOTES.md"
           RELEASE_VERSION="${RELEASE_TAG#v}"
-          RELEASE_TITLE="测评证据采集工具 v${RELEASE_VERSION}"
+          RELEASE_TITLE="证据采集工具 v${RELEASE_VERSION}"
           TARGET_COMMIT="$(git rev-list -n 1 "$RELEASE_TAG")"
 
           if [ ! -s "$NOTES_FILE" ]; then

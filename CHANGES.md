@@ -1,5 +1,26 @@
 # 修改记录 — Picture OCR
 
+## 2026-09-30 — 程序外壳去掉「测评」字样
+
+### 背景与目标
+- 通用化后程序名、窗口标题、PWA 名称和启动器仍带「测评」，统一改为「证据采集工具」。
+
+### 影响与兼容性
+- 桌面版数据目录由包名 `picture_ocr` 决定（打包后的 package.json 不含 productName），改 `productName` 只影响 exe、安装包显示名与快捷方式，`%APPDATA%\picture_ocr` 不变。
+- 新选择的自定义数据位置子目录改为 `证据采集数据`；已迁移到 `测评证据采集数据` 的用户继续使用原目录，备份删除仍识别旧名。
+- Web 版启动器改名为 `启动证据采集工具.bat`，端口与 origin 不变，浏览器数据不受影响。
+
+### 文件与实现
+| 操作 | 路径 | 说明 |
+|---|---|---|
+| 修改 | `package.json`、`electron/main.cjs`、`public/manifest.webmanifest` | productName/description、窗口标题、PWA 名称与描述。 |
+| 修改 | `electron/dataLocation.cjs`、`scripts/verify-data-location.cjs` | 新子目录名、旧子目录备份删除兼容及回归断言。 |
+| 重命名/修改 | `启动证据采集工具.bat`、`.github/workflows/release.yml`、`README.md`、`RELEASE-NOTES.md` | 启动器文件名与发布标题同步。 |
+
+### 验证
+- `npm run desktop:build`、`verify:data-location`（31/31）、`verify:pwa-build`、`verify:web-lan-server`、`verify-presets.mjs` 通过。
+- 真实数据副本：复制 `%APPDATA%\picture_ocr` 与 Chrome `127.0.0.1:51730` 的 IndexedDB 到 `E:\tmp\picture-ocr-realdata`，新 exe 与新构建 Web 版分别读取：桌面 1 项目/22 资产/226 张图、Web 1 项目/11 资产/8 张图全部存在并解码成功；原目录前后 md5 一致。
+
 ## 2026-09-30 — 通用证据采集模板与项目预设
 
 ### 背景与目标

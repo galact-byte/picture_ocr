@@ -7,7 +7,7 @@
 从 [GitHub Releases](https://github.com/galact-byte/picture_ocr/releases) 下载所需版本：
 
 - **Windows 桌面版**：下载便携版 `.exe`，直接打开即可使用。
-- **Web 版**：下载 `picture-ocr-vX.Y.Z.zip` 并完整解压，双击 `启动测评证据采集工具.bat`，浏览器会自动打开。使用期间请保持启动窗口打开，无需安装开发环境。
+- **Web 版**：下载 `picture-ocr-vX.Y.Z.zip` 并完整解压，双击 `启动证据采集工具.bat`，浏览器会自动打开。使用期间请保持启动窗口打开，无需安装开发环境。
 
 每个 Release 页面及 Web ZIP 内的 `RELEASE-NOTES.md` 都提供对应版本的更新说明。本文介绍当前源码的功能；已下载版本的功能以其更新说明为准。
 

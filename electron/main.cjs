@@ -138,7 +138,7 @@ function createWindow() {
     height: 820,
     minWidth: 1024,
     minHeight: 720,
-    title: '测评证据采集工具',
+    title: '证据采集工具',
     backgroundColor: '#f8fafc',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

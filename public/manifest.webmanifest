@@ -1,7 +1,7 @@
 {
-  "name": "测评证据采集工具",
+  "name": "证据采集工具",
   "short_name": "证据采集",
-  "description": "离线采集测评截图证据，并通过加密采集包回传。",
+  "description": "离线采集截图证据，并通过加密采集包回传。",
   "lang": "zh-CN",
   "start_url": "./#/mobile",
   "scope": "./",

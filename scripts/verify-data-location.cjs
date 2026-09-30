@@ -7,7 +7,8 @@ const Module = require('node:module');
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'evd-dataloc-'));
 const appData = path.join(tmpRoot, 'AppData', 'Roaming');
-const APP_NAME = '测评证据采集工具';
+// 打包后的 package.json 没有 productName，应用名取 name，故默认 userData 是 %APPDATA%\picture_ocr。
+const APP_NAME = 'picture_ocr';
 const defaultUserData = path.join(appData, APP_NAME);
 
 let userDataPath = defaultUserData;
@@ -53,6 +54,8 @@ function seedDefaultUserData() {
 }
 
 (async () => {
+  check('新数据子目录不再带测评字样', freshModule().DATA_SUBDIR === '证据采集数据');
+
   // 场景1：默认位置、无配置 → init 不改位置
   seedDefaultUserData();
   userDataPath = defaultUserData;
@@ -119,6 +122,14 @@ function seedDefaultUserData() {
   check('deleteBackup 成功', delRes.deleted === true);
   check('自定义备份目录被删除', !fs.existsSync(target));
   check('删除后 backup 字段移除', dl.getLocationInfo().backup === undefined);
+
+  // 场景7b：旧版本创建的自定义备份子目录名仍允许删除。
+  {
+    const legacyBackup = path.join(tmpRoot, 'old_drive', '测评证据采集数据');
+    fs.mkdirSync(legacyBackup, { recursive: true });
+    fs.writeFileSync(cfgPath, JSON.stringify({ version: 1, backup: { dir: legacyBackup, createdAt: Date.now(), isDefaultRoot: false } }));
+    check('旧名自定义备份可删除', dl.deleteBackup().deleted === true && !fs.existsSync(legacyBackup));
+  }
 
   // 场景8：指针指向不存在/不可写目录 → 回退默认 + 告警
   {

@@ -11,7 +11,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const CONFIG_FILE = 'data-location.json';
-const DATA_SUBDIR = '测评证据采集数据';
+const DATA_SUBDIR = '证据采集数据';
+// 改名前迁移到自定义位置的数据仍在旧子目录名下，备份清理必须仍能识别。
+const LEGACY_DATA_SUBDIRS = ['测评证据采集数据'];
 const BACKUP_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 备份保留 7 天
 const DAY_MS = 24 * 60 * 60 * 1000;
 // 复制时跳过的无关/易锁定缓存目录，以及指针本体（指针只应存在于默认位置）。
@@ -85,7 +87,7 @@ function deleteBackupDir(backup) {
     }
   } else {
     // 自定义备份必是本工具建的数据子目录，避免误删用户放同目录的其它文件。
-    if (path.basename(backup.dir) !== DATA_SUBDIR) return;
+    if (![DATA_SUBDIR, ...LEGACY_DATA_SUBDIRS].includes(path.basename(backup.dir))) return;
     fs.rmSync(backup.dir, { recursive: true, force: true });
   }
 }

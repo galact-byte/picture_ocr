@@ -2,7 +2,7 @@
   "name": "picture_ocr",
   "private": true,
   "version": "0.9.0",
-  "description": "测评证据采集工具",
+  "description": "证据采集工具",
   "author": "galact",
   "repository": {
     "type": "git",
@@ -62,7 +62,7 @@
   },
   "build": {
     "appId": "com.galact.pictureocr",
-    "productName": "测评证据采集工具",
+    "productName": "证据采集工具",
     "directories": {
       "output": "desktop-dist"
     },
