@@ -1,5 +1,12 @@
 # 修改记录 — Picture OCR
 
+## 2026-09-30 — 发布 v0.10.0
+
+- 版本号升至 0.10.0，`RELEASE-NOTES.md` 改写为通用化版本的用户说明（含等保老用户另存预设步骤与启动器改名）。
+- 修正 `scripts/storage-stats-cases.mjs`：通用模板不再预置资产，夹具改为自行创建带检查项的资产。
+- 验证：`npm run build`、`desktop:build`（exe 版本 0.10.0）、21 个 `verify:*` 脚本及 `verify-presets.mjs`、`verify-presets-ui.mjs` 全部退出码 0。
+- 清理 `.trellis/.runtime/` 下的临时验证日志与截图，以及真实数据副本 `E:\tmp\picture-ocr-realdata`。
+
 ## 2026-09-30 — 程序外壳去掉「测评」字样
 
 ### 背景与目标

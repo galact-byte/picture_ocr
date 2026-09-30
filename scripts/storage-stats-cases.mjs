@@ -30,8 +30,17 @@ export async function run() {
   await request(indexedDB.deleteDatabase(DB_NAME));
   localStorage.clear();
 
+  const docWithAsset = () => {
+    const doc = db.createProjectDocument();
+    doc.assets = [{ id: `asset-${doc.id}`, name: 'S', categoryId: doc.categories[0].id, items: [{ id: `item-${doc.id}`, label: '截图', required: false, fromTemplateId: null, images: [] }] }];
+    return doc;
+  };
   const seed = async (name, images) => {
-    const [doc] = await db.createProjectGroupWithSystems({ projectCode: 'C', projectName: 'P', unitName: 'U', reportDate: '2026-09-01' }, [name]);
+    const [created] = await db.createProjectGroupWithSystems({ projectCode: 'C', projectName: 'P', unitName: 'U', reportDate: '2026-09-01' }, [name]);
+    // 通用模板不再预置资产，测试自行准备一个带检查项的资产。
+    const asset = { id: `asset-${name}`, name, categoryId: created.categories[0].id, items: [{ id: `item-${name}`, label: '截图', required: false, fromTemplateId: null, images: [] }] };
+    await db.saveProjectWithImages({ ...created, assets: [asset] });
+    const doc = await db.loadProject(created.id);
     for (const [id, data] of images) {
       await db.addImageToProject(doc.id, doc.assets[0].id, doc.assets[0].items[0].id, { id, fileName: `${id}.png`, data, caption: '', uploadedAt: '2026-01-01T00:00:00.000Z' });
     }
@@ -77,7 +86,7 @@ export async function run() {
 
   await test('写入即为引用形态的系统不等后台整理', async () => {
     const [created] = await db.createProjectGroupWithSystems({ projectCode: 'N', projectName: 'N', unitName: 'U', reportDate: '2026-09-01' }, ['新建']);
-    const imported = db.createProjectDocument();
+    const imported = docWithAsset();
     imported.assets[0].items[0].images = [{ id: 'i1', fileName: 'i.png', data: PNG, caption: '', uploadedAt: '2025-01-01T00:00:00.000Z' }];
     await db.saveProjectWithImages(imported);
     const blank = db.createProjectDocument();
@@ -90,7 +99,7 @@ export async function run() {
   });
 
   await test('未整理系统标记、已归档系统不读字节', async () => {
-    const legacy = db.createProjectDocument();
+    const legacy = docWithAsset();
     legacy.assets[0].items[0].images = [{ id: 'l1', fileName: 'l.png', data: PNG, caption: '', uploadedAt: '2025-01-01T00:00:00.000Z' }];
     await db.saveProject(legacy);
     let stats = byId(await computeStorageStats(await summaries(), { now }));
