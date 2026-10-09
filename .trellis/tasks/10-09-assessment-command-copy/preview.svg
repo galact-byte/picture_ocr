@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="930" viewBox="0 0 1200 930" role="img" aria-labelledby="title desc">
+<title id="title">测评命令快捷复制：资产入口与弹窗设计预览</title>
+<desc id="desc">资产工具条提供测评命令按钮。弹窗选中服务器、Linux RHEL/CentOS，左侧身份鉴别分组，右侧显示账号、密码复杂度和有效期查询，每段与整组均提供复制操作。</desc>
+<defs><style>
+text{font-family:'Microsoft YaHei','Noto Sans CJK SC',sans-serif;fill:#0f172a;font-size:15px}
+.muted{fill:#475569;font-size:14px}.small{fill:#64748b;font-size:13px}.title{font-size:20px;font-weight:600}.bold{font-weight:600}.code{font-family:Consolas,'Microsoft YaHei',monospace;font-size:15px}.blue{fill:#1d4ed8}.white{fill:white}
+</style></defs>
+<rect width="1200" height="930" fill="#f1f5f9"/>
+<text x="56" y="42" class="title">测评命令快捷复制 · 设计预览</text>
+<text x="56" y="70" class="muted">入口放在资产页工具条；按平台查看，按核查用途复制。</text>
+<rect x="56" y="94" width="1088" height="78" fill="white" stroke="#e2e8f0"/>
+<rect x="72" y="110" width="630" height="44" fill="white" stroke="#cbd5e1"/>
+<text x="86" y="138" class="small">添加自定义检查项...</text>
+<rect x="710" y="110" width="94" height="44" fill="#2563eb"/>
+<text x="738" y="138" class="white">添加</text>
+<rect x="812" y="110" width="136" height="44" fill="white" stroke="#cbd5e1"/>
+<text x="848" y="138">调整顺序</text>
+<rect x="956" y="110" width="172" height="44" fill="white" stroke="#2563eb"/>
+<path d="M973 123l6 7-6 7m13 0h8" fill="none" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="1006" y="138" class="blue bold">测评命令</text>
+<rect x="56" y="204" width="1088" height="666" fill="white" stroke="#cbd5e1"/>
+<text x="80" y="240" class="title">测评命令</text>
+<text x="80" y="266" class="muted">当前资产：Linux 服务器</text>
+<rect x="1080" y="216" width="44" height="44" fill="white"/>
+<path d="M1096 232l12 12m0-12l-12 12" stroke="#64748b" stroke-width="1.8"/>
+<line x1="56" y1="286" x2="1144" y2="286" stroke="#e2e8f0"/>
+<text x="80" y="314" class="muted">设备类型</text>
+<rect x="80" y="326" width="186" height="44" fill="white" stroke="#cbd5e1"/>
+<text x="96" y="354">服务器</text>
+<path d="M241 344l6 6 6-6" fill="none" stroke="#64748b" stroke-width="1.5"/>
+<text x="282" y="314" class="muted">平台</text>
+<rect x="282" y="326" width="344" height="44" fill="white" stroke="#cbd5e1"/>
+<text x="298" y="354">Linux · RHEL / CentOS</text>
+<path d="M600 344l6 6 6-6" fill="none" stroke="#64748b" stroke-width="1.5"/>
+<text x="642" y="314" class="muted">查找命令</text>
+<rect x="642" y="326" width="478" height="44" fill="white" stroke="#cbd5e1"/>
+<circle cx="662" cy="346" r="6" fill="none" stroke="#64748b" stroke-width="1.5"/>
+<path d="M667 351l5 5" stroke="#64748b" stroke-width="1.5"/>
+<text x="684" y="354" class="small">搜索检查项或命令</text>
+<line x1="56" y1="390" x2="1144" y2="390" stroke="#e2e8f0"/>
+<rect x="57" y="391" width="225" height="478" fill="#f8fafc"/>
+<line x1="282" y1="390" x2="282" y2="869" stroke="#e2e8f0"/>
+<text x="80" y="424" class="small">检查用途</text>
+<rect x="68" y="440" width="202" height="44" fill="#eff6ff"/>
+<rect x="68" y="440" width="3" height="44" fill="#2563eb"/>
+<text x="88" y="468" class="blue bold">身份鉴别</text>
+<text x="88" y="516">登录失败与超时</text>
+<text x="88" y="564">访问控制</text>
+<text x="88" y="612">远程管理</text>
+<text x="88" y="660">日志审计</text>
+<text x="88" y="708">版本与网络</text>
+<text x="306" y="424" class="title">身份鉴别</text>
+<text x="306" y="450" class="muted">在 Linux Shell 执行；部分配置需要管理员权限。</text>
+<rect x="988" y="404" width="132" height="44" fill="#2563eb"/>
+<text x="1022" y="432" class="white bold">复制本组</text>
+<line x1="306" y1="466" x2="1120" y2="466" stroke="#e2e8f0"/>
+<text x="306" y="502" class="bold">用户列表</text>
+<rect x="1036" y="476" width="84" height="44" fill="white" stroke="#cbd5e1"/>
+<text x="1063" y="504">复制</text>
+<rect x="306" y="528" width="814" height="48" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="322" y="558" class="code">getent passwd</text>
+<text x="306" y="614" class="bold">密码复杂度策略</text>
+<rect x="1036" y="588" width="84" height="44" fill="white" stroke="#cbd5e1"/>
+<text x="1063" y="616">复制</text>
+<rect x="306" y="640" width="814" height="66" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="322" y="667" class="code">cat /etc/pam.d/system-auth</text>
+<text x="322" y="690" class="code">cat /etc/pam.d/password-auth</text>
+<text x="306" y="744" class="bold">密码有效期与默认策略</text>
+<rect x="1036" y="718" width="84" height="44" fill="white" stroke="#cbd5e1"/>
+<text x="1063" y="746">复制</text>
+<rect x="306" y="770" width="814" height="48" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="322" y="800" class="code">cat /etc/login.defs</text>
+<text x="306" y="843" class="small">默认策略与既有账号的实际有效期需分别核查。</text>
+<text x="80" y="909" class="small">复制成功显示“已复制”；受限时提供手动选择文本。说明文字不进入复制内容。</text>
+</svg>

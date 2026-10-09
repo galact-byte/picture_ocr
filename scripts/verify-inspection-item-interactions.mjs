@@ -12,7 +12,7 @@ const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'picture-ocr-in
 const sourceDirectory = path.join(temporaryDirectory, 'src');
 
 try {
-  for (const relativePath of ['context/appReducer.ts', 'data/defaults.ts', 'types/index.ts']) {
+  for (const relativePath of ['context/appReducer.ts', 'data/defaults.ts', 'types/index.ts', 'utils/preset.ts']) {
     const destination = path.join(sourceDirectory, relativePath);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(projectRoot, 'src', relativePath), destination);

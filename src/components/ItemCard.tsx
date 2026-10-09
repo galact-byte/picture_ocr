@@ -8,6 +8,9 @@ import { useConfirmDialog } from './ConfirmDialog';
 
 interface ItemCardProps {
   item: CheckItem;
+  commandPanel?: React.ReactNode;
+  commandCount?: number;
+  onManageCommands?: () => void;
   assetId: string;
   sortIndex?: number;
   onRename: (itemId: string, newLabel: string) => void;
@@ -77,7 +80,11 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
   onReorderImages,
   isPasteTarget = false,
   onSelectPasteTarget,
+  commandPanel,
+  commandCount = 0,
+  onManageCommands,
 }) => {
+  const [commandsExpanded, setCommandsExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(item.label);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -132,10 +139,10 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
         className={`absolute left-0 top-0 h-full w-1.5 ${item.required ? 'bg-red-500' : 'bg-slate-300'}`}
         title={item.required ? '必填项' : '选填项'}
       />
-      <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-8 py-5">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-5 sm:px-8">
+        <div className="flex min-w-0 flex-1 basis-full items-center gap-3 sm:basis-auto">
           <span
-            className={`mt-0.5 flex-shrink-0 border px-2 py-0.5 text-xs font-semibold ${
+            className={`flex-shrink-0 border px-2 py-0.5 text-xs font-semibold ${
               item.required ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-500'
             }`}
             title={item.required ? '必填' : '选填'}
@@ -157,11 +164,16 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
                 autoFocus
               />
             ) : (
-              <span className="block text-base font-bold leading-6 text-slate-950">{item.label}</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-base font-bold leading-6 text-slate-950">{item.label}</span>
+                {commandPanel && <button type="button" aria-expanded={commandsExpanded} aria-controls={`item-commands-${item.id}`} onClick={event => { event.stopPropagation(); event.currentTarget.focus(); if (!commandCount) onManageCommands?.(); else setCommandsExpanded(expanded => !expanded); }} className="inline-flex min-h-11 items-center gap-2 px-2 text-sm font-normal text-slate-600 hover:border-blue-300 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+                  <span>命令{commandCount > 0 ? ` (${commandCount})` : ''}</span><span aria-hidden="true">{commandsExpanded ? '▴' : '▾'}</span>
+                </button>}
+              </div>
             )}
           </div>
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-1">
           <button
             type="button"
             onClick={(event) => {
@@ -215,7 +227,8 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
         </div>
       </div>
 
-      <div className="px-8 py-6">
+      {commandPanel && <div id={`item-commands-${item.id}`} hidden={!commandsExpanded}>{commandsExpanded && commandPanel}</div>}
+      <div className="px-4 py-6 sm:px-8">
         {isPasteTarget && (
           <div className="mb-4 border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-700">
             当前粘贴目标：按 Ctrl+V 可直接粘贴截图到此检查项

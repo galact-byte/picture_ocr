@@ -24,6 +24,8 @@
     "verify:error-report": "node scripts/verify-error-report.mjs",
     "verify:summary-repair": "node scripts/verify-summary-repair.mjs",
     "verify:image-store": "node scripts/verify-image-store.mjs",
+    "verify:assessment-commands": "node scripts/verify-assessment-commands.mjs",
+    "verify:assessment-commands-ui": "node scripts/verify-assessment-commands-browser.mjs",
     "verify:pending-writes": "node scripts/verify-pending-writes.mjs",
     "verify:archive-model": "node scripts/verify-archive-model.mjs",
     "verify:archive-format": "node scripts/verify-archive-format.mjs",

@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"验证真实复制、错误和生命周期分支"}
+{"file":".trellis/spec/frontend/assessment-commands.md","reason":"检查默认继承与原手动绑定兼容、辅助配置隔离、跨窗口互斥与失败保护"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"核查组件边界、复用与视觉一致性"}
+{"file":".trellis/tasks/10-09-assessment-command-copy/research/command-reference.md","reason":"逐组核对命令来源、版本与执行环境"}

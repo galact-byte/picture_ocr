@@ -18,6 +18,7 @@
 | [Hook 规范](./hook-guidelines.md) | Context hooks、effect、异步资源清理 |
 | [状态管理](./state-management.md) | reducer、Context、IndexedDB、局部状态 |
 | [类型安全](./type-safety.md) | 领域类型、严格 TypeScript、运行时边界 |
+| [测评命令](./assessment-commands.md) | 内置目录、本机 CRUD、剪贴板回退与检查项关联 |
 | [质量规范](./quality-guidelines.md) | 构建、验证脚本、错误处理、手工检查 |
 
 ## 修改前检查

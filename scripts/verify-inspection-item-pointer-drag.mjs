@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildSync } from 'esbuild';
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDirectory, '..');
@@ -335,7 +336,25 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await debuggerClient.send('Page.navigate', { url: `http://127.0.0.1:${vitePort}/#/project/pointer-drag-regression` });
+  await debuggerClient.send('Page.navigate', { url: `http://127.0.0.1:${vitePort}/` });
+  await waitFor(() => evaluate(debuggerClient, "document.getElementById('root')?.children.length > 0"), '隔离应用初始化');
+  // 默认项目不再预置资产，回归所需内容在临时 profile 中明确创建。
+  const seedScript = buildSync({
+    stdin: { resolveDir: projectRoot, contents: `
+      import { createProjectDocument, saveProject } from './src/utils/db.ts';
+      window.seedPointerRegression = async () => {
+        const doc = createProjectDocument({ systemName: '排序回归系统' });
+        doc.id = 'pointer-drag-regression';
+        doc.categories = [{ id: 'pointer-category', name: '排序回归', type: 'checklist', order: 1, defaultItems: [] }];
+        doc.assets = [{ id: 'pointer-asset', categoryId: 'pointer-category', name: '排序回归资产',
+          items: Array.from({ length: 24 }, (_, i) => ({ id: 'pointer-item-' + i, label: '检查项 ' + (i + 1), required: false, images: [] })),
+        }];
+        await saveProject(doc); location.hash = '#/project/' + doc.id;
+      };
+    ` }, bundle: true, write: false, format: 'iife', platform: 'browser',
+  }).outputFiles[0].text;
+  await evaluate(debuggerClient, seedScript);
+  await evaluate(debuggerClient, 'window.seedPointerRegression()');
   await waitFor(
     () => evaluate(debuggerClient, "document.body.textContent?.includes('调整顺序')"),
     '工作台加载完成'

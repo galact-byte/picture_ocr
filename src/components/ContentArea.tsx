@@ -4,6 +4,12 @@ import { reportCriticalError } from '../utils/errorLog';
 import { getAssetById } from '../context/appReducer';
 import { getImageFilesFromClipboard, readImageFiles } from '../utils/imageFiles';
 import ItemCard from './ItemCard';
+import AssessmentCommandDialog from './AssessmentCommandDialog';
+import ItemCommandPanel from './ItemCommandPanel';
+import { useAssessmentCommandLibrary } from '../hooks/useAssessmentCommandLibrary';
+import { commandBindingKey, resetCommandBinding, setCommandLinked } from '../utils/assessmentCommandBindings';
+import { effectiveCommandProfile, hasAssetCommandOverride, readCommandDefaults, resolveItemCommandIds, setCommandDefault } from '../utils/assessmentCommandDefaults';
+import { readCommandChanges, resolveCommandProfiles } from '../utils/assessmentCommandStore';
 
 interface DragOverlayState {
   label: string;
@@ -44,8 +50,11 @@ function isTextEditingElement(element: Element | null): boolean {
 const ContentArea: React.FC = () => {
   const { assets, activeAssetId, categories } = useAppState();
   const dispatch = useDispatch();
-  const { addImageAndSave, removeImageAndSave } = useAppContext();
+  const { addImageAndSave, removeImageAndSave, projectId } = useAppContext();
+  const commandLibrary = useAssessmentCommandLibrary();
+  const [commandItemId, setCommandItemId] = useState<string | null>(null);
   const [newItemLabel, setNewItemLabel] = useState('');
+  const [commandAssetId, setCommandAssetId] = useState<string | null>(null);
   const [pasteTargetItemId, setPasteTargetItemId] = useState<string | null>(null);
   const [isSortingItems, setIsSortingItems] = useState(false);
   const [dragItemId, setDragItemId] = useState<string | null>(null);
@@ -68,6 +77,13 @@ const ContentArea: React.FC = () => {
   const activeCategory = activeAsset
     ? categories.find((category) => category.id === activeAsset.categoryId)
     : undefined;
+
+  const commandScope = { projectId, assetId: activeAsset?.id ?? '', categoryId: activeCategory?.id };
+  const commandError = commandLibrary.libraryError || commandLibrary.bindingsError || commandLibrary.defaultsError;
+  const itemCommandIds = (itemId: string) => {
+    const item = activeAsset?.items.find(item => item.id === itemId);
+    return item && !commandError ? resolveItemCommandIds(commandLibrary.profiles, commandLibrary.defaults, commandLibrary.bindings, { ...commandScope, itemId }, item.label) : [];
+  };
 
   const captureItemRects = useCallback(() => {
     const nextRects = new Map<string, DOMRect>();
@@ -189,19 +205,22 @@ const ContentArea: React.FC = () => {
 
   useEffect(() => {
     setPasteTargetItemId(null);
+    setCommandAssetId(null);
+    setCommandItemId(null);
     setIsSortingItems(false);
     clearItemDrag();
     return clearItemDrag;
   }, [activeAsset?.id, clearItemDrag]);
 
   useEffect(() => {
+    if (commandItemId && !activeAsset?.items.some(item => item.id === commandItemId)) { setCommandAssetId(null); setCommandItemId(null); }
     if (pasteTargetItemId && !activeAsset?.items.some((item) => item.id === pasteTargetItemId)) {
       setPasteTargetItemId(null);
     }
     if (dragItemId && !activeAsset?.items.some((item) => item.id === dragItemId)) {
       clearItemDrag();
     }
-  }, [activeAsset?.items, clearItemDrag, dragItemId, pasteTargetItemId]);
+  }, [activeAsset?.items, clearItemDrag, commandItemId, dragItemId, pasteTargetItemId]);
 
   useLayoutEffect(() => {
     const previousRects = itemRectsRef.current;
@@ -399,7 +418,7 @@ const ContentArea: React.FC = () => {
 
   return (
     <main ref={mainContentRef} className="flex-1 overflow-y-auto bg-slate-100 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px]">
-      <div className="mx-auto max-w-6xl px-8 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8">
         <div className="mb-8">
           <h2 className="text-4xl font-extrabold tracking-tight text-slate-950">{activeAsset.name}</h2>
           <div className="mt-4 flex flex-wrap items-center gap-4 text-base text-slate-600">
@@ -468,9 +487,46 @@ const ContentArea: React.FC = () => {
               >
                 调整顺序
               </button>
+              <button
+                type="button"
+                onClick={(event) => { event.currentTarget.focus(); setCommandItemId(null); setCommandAssetId(activeAsset.id); }}
+                className="inline-flex min-h-11 items-center gap-2 border border-slate-300 bg-white px-4 text-base text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m4 6 6 6-6 6m10 0h6" />
+                </svg>
+                测评命令
+              </button>
             </div>
           )}
         </div>
+
+        <AssessmentCommandDialog
+          key={activeAsset.id}
+          isOpen={commandAssetId === activeAsset.id}
+          assetName={activeAsset.name}
+          categoryName={activeCategory?.name ?? ''}
+          itemId={commandItemId ?? undefined}
+          itemLabel={activeAsset.items.find(item => item.id === commandItemId)?.label}
+          linkedIds={commandItemId ? itemCommandIds(commandItemId) : []}
+          bindingError={commandError}
+          configuredProfileId={effectiveCommandProfile(commandLibrary.defaults, commandScope)}
+          hasAssetOverride={hasAssetCommandOverride(commandLibrary.defaults, commandScope)}
+          defaultsError={commandLibrary.defaultsError}
+          canSetCategory={!!activeCategory}
+          onSetDefault={async (kind, profileId) => { await setCommandDefault(kind, commandScope, profileId); commandLibrary.refresh(); }}
+          hasManualBinding={!!commandItemId && Object.prototype.hasOwnProperty.call(commandLibrary.bindings, commandBindingKey({ ...commandScope, itemId: commandItemId }))}
+          onResetBinding={async () => { if (commandItemId) { await resetCommandBinding({ ...commandScope, itemId: commandItemId }); commandLibrary.refresh(); } }}
+          onToggleLink={async (id, linked) => {
+            if (!commandItemId) return;
+            const target = { ...commandScope, itemId: commandItemId };
+            const label = activeAsset.items.find(item => item.id === commandItemId)?.label ?? '';
+            await setCommandLinked(target, id, linked, localStorage, () => resolveItemCommandIds(resolveCommandProfiles(readCommandChanges()), readCommandDefaults(), {}, target, label));
+            commandLibrary.refresh();
+          }}
+          onLibraryChange={commandLibrary.refresh}
+          onClose={() => setCommandAssetId(null)}
+        />
 
         {activeAsset.items.length === 0 ? (
           <div className="py-12 text-center text-gray-400">
@@ -484,6 +540,14 @@ const ContentArea: React.FC = () => {
                 item={item}
                 sortIndex={index + 1}
                 assetId={activeAsset.id}
+                commandCount={itemCommandIds(item.id).length}
+                onManageCommands={() => { setCommandItemId(item.id); setCommandAssetId(activeAsset.id); }}
+                commandPanel={<ItemCommandPanel
+                  profiles={commandLibrary.profiles}
+                  ids={itemCommandIds(item.id)}
+                  error={commandError}
+                  onManage={() => { setCommandItemId(item.id); setCommandAssetId(activeAsset.id); }}
+                />}
                 isSorting={isSortingItems}
                 isDragSource={item.id === dragItemId}
                 onSortHandlePointerDown={handleSortHandlePointerDown}
