@@ -70,7 +70,8 @@ copyCommandText(text: string): Promise<boolean>
 - Windows 剪贴板可能把 LF 转成 CRLF，读回时仅归一化 CRLF→LF，其他字符逐字匹配。非安全页用同一 Chrome 的安全读取页验证真实回退；读取页先激活并确认 `document.hasFocus()`。Electron 自动化主页面在实际点击复制前显式启用焦点模拟并确认 `document.hasFocus()`，避免后台 CDP 目标复制回归得到陈旧系统文本；复制断言失败时只记录文本长度与状态，不输出剪贴板的其他用户内容。
 - 375/768/1280 验证命令弹窗、行内代码滚动与按钮高度；行内控件验证不代表原工作台全局移动端布局已改造。
 - 默认继承回归还须覆盖十台合成旧资产、实际新增资产/检查项、Windows 单台例外、受控别名与歧义、手动优先、空覆盖刷新/恢复、默认配置损坏/写失败、真实另一页面 storage 同步；配置操作前后完整项目文档和图片引用逐字不变。新增/删除夹具属于测试准备/清理，不能算作命令功能改写项目。
-- 两页写入 Promise 返回后，另一 renderer 的 localStorage 可见性和原生 storage 事件仍需有界等待；测试等待真实同步条件，再断言双方字段均保留，不用固定延迟冒充同步或放宽存储结果。
+- 两页写入 Promise 返回后，另一 renderer 的 localStorage 可见性和原生 storage 事件仍需有界等待；必须分别等待命令、关联、默认平台三个键包含双方的期望值，不能以默认平台键已同步推断其他键已同步。仍用原有 5 秒轮询预算，不延长时限掩盖丢写；核对两窗口完整快照相同、同段冲突只允许一方成功，刷新两页后再次核对保留结果。
+- `node scripts/verify-assessment-commands-browser.mjs --concurrency-only` 执行三环境短时并发验证，加 `--lan-only` 只测非安全 LAN HTTP；输出 `concurrency-report.json`，不覆盖完整 `report.json`。测试持锁夹具在空 profile 中必须创建 `mutex` store，不得依赖其他用例初始化。受控关联读取延迟须通过、持续缺失须超时失败；该故障注入只证明验证器行为，不证明历史失败原因。真实并发失败保留两页多次快照及错误到 `{platform}-concurrency-failure.json`，以区分迟到同步和持续丢失，不能仅凭下一次成功认定是误报。
 - 命令内容按来源核对，缺少真实目标设备/数据库时不能称为目标执行成功。
 
 ## 7. 常见错误与正确做法

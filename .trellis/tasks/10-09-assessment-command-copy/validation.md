@@ -1,10 +1,44 @@
 # 测评命令交付验证
 
+## 最新验证：LAN 双窗口并发诊断
+
+### 结论与范围
+
+本轮修复验证脚本的多键等待缺口，没有修改生产存储或界面实现。旧验证器只等待默认平台键，随后立即断言关联和命令；让关联键暂时不可见时，可稳定触发与历史相同的“两个页面新增的关联都保留”失败。修正后等待三个键各自的完整期望值，不增加原有 5 秒预算，并确认持续缺失仍然超时失败。
+
+原始生产问题未在本轮复现：未修改等待条件时，独立 LAN 并发验证连续五轮及一次完整 LAN 回归均成功。历史失败没有保存两页原始快照，受控延迟不能反推其唯一原因；因此不宣称已证明历史误报，也不宣称修复了生产丢写。后续真实失败会保存两页连续六次快照、时间和原始错误。任务保持 `in_progress`。用户已批准提交、推送并构建新版本 v0.11.1；本轮验证维护与三份版本发布文件分别提交，新标签构建 EXE/Web ZIP，保留 v0.11.0 的标签和资产。自动匹配入口增强不属于本次交付。
+
+### 实际验证
+
+| 验证 | 结果 |
+| --- | --- |
+| 旧验证器 + 关联键受控延迟 | Red：在“两个页面新增的关联都保留”处失败 |
+| `npm run build` | 通过；仍有大于 500 kB chunk 提示 |
+| `node scripts/verify-assessment-commands.mjs` | 五组通过 |
+| `node scripts/verify-assessment-commands-browser.mjs` | Web / Electron / 非安全 LAN HTTP 共 142 项通过，退出码 0 |
+| `node scripts/verify-assessment-commands-browser.mjs --concurrency-only` | 三环境共 13 项通过，退出码 0；最终将延迟注入改为固定前三次读取后再次通过 |
+| `node --check scripts/verify-assessment-commands-browser.mjs`、`git diff --check` | 通过 |
+
+真实并发验证包括持锁期间不写入、两个窗口三个键完整快照一致、同段旧快照修改被拒绝、双方刷新后仍一致，以及项目分类/检查项/图片证据不变。完整回归还覆盖四类批量继承、单台例外/恢复、复制及读回、损坏/拒写、键盘、三档布局和离线。最后的局部整理只涉及注入条件、缩进与失败取证，已重跑三环境并发模式；完整回归日志记录的是此前同一行为版本。
+
+测试使用隔离 profile/userData 和合成项目；未读取客户真实库。构建包含工作区已有弹窗样式，但本轮未修改这些文件，也不将其视为本轮交付。本节测试证据在提交和远端构建前取得，发布结果需另核对 GitHub Actions 与 Release 资产；本次检查由主会话完成，没有使用子代理或声称独立审阅。
+
+### 证据
+
+- `.trellis/.runtime/assessment-command-delayed-binding-red.log`：受控延迟下旧验证器失败。
+- `.trellis/.runtime/assessment-command-concurrency-trials.log`、`assessment-command-lan-diagnosis.log`：修正前真实 LAN 路径结果。
+- `.trellis/.runtime/assessment-command-concurrency-green.log`：最终三环境定向验证。
+- `.trellis/.runtime/assessment-command-browser-verified.log`：完整 142 项回归。
+- `.trellis/.runtime/assessment-command-build-current.log`、`assessment-command-unit-current.log`：构建及纯行为。
+- `.trellis/.runtime/assessment-command-qa/report.json`、`concurrency-report.json`：完整与定向报告分开保存。
+
+以下为此前发布与迭代记录，不代替本节结论。
+
 ## 发布决策
 
 用户已确认按既定范围提交推送并构建 v0.11.0，明确允许保留未修复的 LAN 双窗口并发问题；本轮不等待远端构建完成。该授权不代表完整回归通过，任务保持 in_progress。排查入口为 `scripts/assessment-command-browser-cases.mjs` 的 `verifyConcurrentWrites`，需区分多键同步时序与真实丢写；在确定前建议单窗口编辑辅助命令配置。其余弹窗任务不纳入本次提交。
 
-## 最新增量：四类继承与标题对齐
+## 上轮增量：四类继承与标题对齐
 
 - 分类默认适用于网络设备、安全设备、服务器和数据库；纯行为验证覆盖全部 12 平台。新增真实浏览器用例覆盖网络/安全/数据库各十台资产、平台正文隔离、华为/H3C 与 MySQL/Oracle 单台例外及恢复。
 - 修复搜索结果被另一窗口修改后，编辑器分组/执行环境提示丢失：从编辑对象的稳定平台/分组 ID 读取提示，保留草稿及并发冲突保护。浏览器先复现失败，修复后通过。

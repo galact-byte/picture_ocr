@@ -235,7 +235,14 @@ export function crossWindowSnapshot() {
   return [COMMAND_STORAGE_KEY, COMMAND_BINDINGS_KEY, COMMAND_DEFAULTS_KEY].map(key => [key, localStorage.getItem(key)]);
 }
 export async function verifyConcurrentWrites() {
-  await until(() => Object.keys(readCommandDefaults().assets).filter(key => key.includes('cross-window-test')).length === 2, '两个页面默认配置的原生存储同步');
+  // 三个键独立同步；一个键可见不能代表其他键已经到达当前 renderer。
+  await until(() => ['a', 'b'].every(side => {
+    const key = commandBindingKey({ projectId: 'cross-window-test', assetId: 'asset', itemId: side });
+    const snippet = resolveSnippet(`custom-cross-window-${side}`);
+    return readCommandDefaults().assets[JSON.stringify(['cross-window-test', side])] === (side === 'a' ? 'windows' : 'linux-rhel')
+      && snippet?.command === 'whoami'
+      && readCommandBindings()[key]?.includes(`custom-cross-window-${side}`);
+  }), '两个页面的命令、关联与默认平台配置全部同步');
   for (const side of ['a', 'b']) {
     assert(readCommandDefaults().assets[JSON.stringify(['cross-window-test', side])] === (side === 'a' ? 'windows' : 'linux-rhel'), '两个页面平台配置都保留');
     assert(resolveSnippet(`custom-cross-window-${side}`), '两个页面新增的命令都保留');
@@ -244,9 +251,31 @@ export async function verifyConcurrentWrites() {
   }
   return resolveSnippet('custom-cross-window-a');
 }
+export async function verifyDelayedBindingObservation(permanentlyMissing = false) {
+  const original = Storage.prototype.getItem;
+  let staleReads = 0;
+  let remainingStaleReads = 3;
+  Storage.prototype.getItem = function(key) {
+    if (this === localStorage && key === COMMAND_BINDINGS_KEY && (permanentlyMissing || remainingStaleReads-- > 0)) {
+      staleReads++;
+      return null;
+    }
+    return original.call(this, key);
+  };
+  try {
+    let failure;
+    try { await verifyConcurrentWrites(); } catch (error) { failure = error; }
+    if (permanentlyMissing) {
+      assert(failure?.message.startsWith('等待超时：两个页面的命令、关联与默认平台配置全部同步'), '关联持续缺失必须有界失败，不能降低保留数据的要求');
+    } else if (failure) throw failure;
+    assert(staleReads > 0, '确实观察到关联键延迟，而默认平台键已同步');
+  } finally { Storage.prototype.getItem = original; }
+  return permanentlyMissing ? '关联持续缺失仍在原有时限内失败' : '默认平台先可见、关联延后可见时等待完整同步，不误判为丢写';
+}
 export function holdCommandWrites() {
   return new Promise((resolve, reject) => {
     const open = indexedDB.open('evidence-command-write-lock', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('mutex');
     open.onerror = () => reject(open.error);
     open.onsuccess = () => {
       const database = open.result;
