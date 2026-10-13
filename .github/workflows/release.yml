@@ -102,6 +102,8 @@ jobs:
 
           cp -R dist "release/${PACKAGE_NAME}/dist"
           cp README.md "release/${PACKAGE_NAME}/README.md"
+          cp LICENSE "release/${PACKAGE_NAME}/LICENSE"
+          cp NOTICE "release/${PACKAGE_NAME}/NOTICE"
           cp RELEASE-NOTES.md "release/${PACKAGE_NAME}/RELEASE-NOTES.md"
           cp start-server.ps1 "release/${PACKAGE_NAME}/start-server.ps1"
           cp '启动证据采集工具.bat' "release/${PACKAGE_NAME}/启动证据采集工具.bat"
