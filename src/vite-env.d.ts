@@ -57,11 +57,12 @@ interface DataLocationInfo {
   isDefault: boolean;
   defaultDir: string;
   startupWarning?: string;
-  backup?: { dir: string; createdAt: number; remainingDays: number };
+  backup?: { dir: string; createdAt: number; remainingDays: number; preserve?: boolean };
 }
 
 interface DataLocationChangeResult {
   changed: boolean;
+  mode?: 'connect' | 'migrate';
   dataDir?: string;
   needRestart?: boolean;
   reason?: string;

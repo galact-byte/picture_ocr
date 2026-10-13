@@ -62,15 +62,18 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
         else if (result.reason) showToast(result.reason, 'info');
         return;
       }
+      const action = result.mode === 'connect' ? '连接' : '迁移';
       const ok = await confirm({
-        title: '需要重启生效',
-        message: `数据将迁移到：\n${result.dataDir}\n\n应用需要重启以完成迁移（原数据会保留为临时备份）。是否立即重启？`,
+        title: result.mode === 'connect' ? '需要重启生效' : '需要重启迁移数据',
+        message: result.mode === 'connect'
+          ? `将直接连接已有数据目录：\n${result.dataDir}\n\n不会复制或覆盖其中的数据。是否立即重启？`
+          : `数据将迁移到：\n${result.dataDir}\n\n应用需要重启以完成迁移（原数据会保留为临时备份）。是否立即重启？`,
         confirmText: '立即重启',
         cancelText: '稍后',
       });
       if (ok) await window.evidenceData.relaunch();
       else {
-        showToast('已记录新位置，下次启动时完成迁移。', 'info');
+        showToast(`${action}已记录，下次启动时生效。`, 'info');
         await refresh();
       }
     } catch (err) {
@@ -94,7 +97,8 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
     try {
       const result = await window.evidenceData.resetLocation();
       if (!result.changed) {
-        if (result.reason) showToast(result.reason, 'info');
+        if (result.error) showToast(result.error, 'error');
+        else if (result.reason) showToast(result.reason, 'info');
         return;
       }
       await window.evidenceData.relaunch();
@@ -327,7 +331,7 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
                   {info?.isDefault && <span className="ml-2 text-slate-400">（默认位置）</span>}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  项目与图片默认存在 C 盘用户目录。迁移到其它盘可缓解 C 盘占用，C 盘只保留几 KB 指针配置。
+                  项目与图片默认存在 C 盘用户目录。迁移到其它盘可缓解 C 盘占用；如原目录已改名，可直接选择包含 IndexedDB 的原数据目录重新连接。
                 </p>
               </div>
 
@@ -351,7 +355,9 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
               {info?.backup && (
                 <div className="border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-sm text-slate-700">
-                    旧数据备份将在 <span className="font-semibold">{info.backup.remainingDays}</span> 天后自动清理
+                    {info.backup.preserve
+                      ? '旧数据备份已保留，不会自动清理'
+                      : <>旧数据备份将在 <span className="font-semibold">{info.backup.remainingDays}</span> 天后自动清理</>}
                   </p>
                   <p className="mt-1 break-all text-xs text-slate-500">{info.backup.dir}</p>
                   <button

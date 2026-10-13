@@ -104,6 +104,52 @@
 
 错误：写完归档文件就删本地字节，或用内存里的 Blob 充当「读回」。正确：目标的 `read` 必须重新从磁盘读取，校验通过后由单事务在比对集合后删除并打标记。
 
+## 桌面数据目录重连与迁移契约
+
+### 1. 范围与触发
+
+`electron/dataLocation.cjs`、正式 main/preload 和存储设置；处理自定义数据目录改名、移动、指针损坏及迁移。Web IndexedDB 路径和数据库 schema 不变。路径恢复只能连接现存数据库，不能从脱离索引的图片文件推测系统结构。
+
+### 2. 接口
+
+- `init(): void`：ready 前读取指针和处理待操作，记录 `recoveryRequired`。
+- `needsLocationRecovery(): boolean`、`recoverMissingLocation(): Promise<boolean>`：ready 后、创建任何工作台窗口前定位原目录；false 或异常必须退出。
+- `chooseLocation(window): Promise<DataLocationChangeResult>`：选中目录本身有非空 `IndexedDB` 时返回 `mode: 'connect'`；普通父目录使用 `mode: 'migrate'`，目标为其下 `证据采集数据`。
+- `resetLocation(): DataLocationChangeResult`：执行相同迁移目标检查。
+
+### 3. 数据与跨层契约
+
+- `%APPDATA%/picture_ocr/data-location.json` 固定在默认位置；`dataDir`、`migration.from/to` 必须为绝对路径，`migration.mode` 允许省略（旧迁移）、`migrate` 或 `connect`。
+- `DataLocationChangeResult = { changed, mode?, dataDir?, needRestart?, reason?, error? }` 经 `window.evidenceData` 透传。运行中只写待操作标记；重启且 store 未打开时执行。
+- 重连只更新指针，同时设置 `userData` 和 `sessionData`，不复制数据库文件。已有 `backup` 设置 `preserve: true`；UI 显示保留状态，过期清理跳过它。
+- 目录识别仅确认 `IndexedDB` 非空，不代表其中项目完整或数据库健康。由用户选择真实目录本身，不扫描候选或根据目录名、唯一子目录猜测归属。
+- 指针写入使用同目录临时文件再 rename；写入失败不解除启动阻塞。权限检查仅 stat/access，不创建缺失路径。
+
+### 4. 校验与错误矩阵
+
+| 情况 | 行为 |
+| --- | --- |
+| 无配置、正常首次启动 | 使用默认位置 |
+| 配置损坏、自定义路径失效或无 IndexedDB | 在工作台创建前要求定位；不回落到默认空库 |
+| 取消、选错目录、权限/配置保存失败 | 退出；不打开工作台、不改写原库 |
+| 待直连目录在重启前消失 | 重新要求定位，不能回落默认库 |
+| 选择包含已有库的父目录 | 不自动连接其子目录；目标已占用则拒绝迁移，提示选择原目录本身 |
+| 迁移源失效、源目标互相包含 | 拒绝复制 |
+| 目标有非缓存文件，包括另一套数据库 | 选择时及启动复制前均拒绝合并覆盖 |
+| 备份等于或包含正在使用的目录 | 任何备份删除不得删除当前库 |
+
+### 5. 正常与边界例
+
+原目录改名后启动要求选择新路径，项目及图片沿同一数据库读取；再次启动使用持久指针。旧版已建出有效空库时不能仅凭库为空判断路径归属，由用户在存储设置中直接选择真实原目录并重启。项目文档已经缺失时，重连不承诺恢复它。
+
+### 6. 必需测试
+
+`npm run verify:data-location` 覆盖目录失效不创建、取消/无效/权限/写配置失败、直连、冲突、源消失、嵌套及备份保护。`npm run build` 后运行 `node scripts/verify-data-location-electron.mjs`：用临时目录和合成原生 IndexedDB，退出后真实重命名，经正式 main/preload 断言定位期间 windowCount=0、原系统显示、图片解码显示、内容保持、持久指针与空库直连。禁止把用户真实材料做成测试夹具或提交。
+
+### 7. 错误与正确
+
+错误：在权限检查中递归创建旧路径，异常后继续打开默认空库，或把两套 LevelDB 目录合并复制。正确：检查已有路径，恢复成功后才创建窗口；重连只改指针，迁移前拒绝占用目标。
+
 ## 反模式
 
 - 不为前端任务引入服务端数据库假设或 ORM。

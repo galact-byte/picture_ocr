@@ -307,7 +307,17 @@ ipcMain.handle('data:relaunch', (event) => {
   app.exit(0);
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  try {
+    if (!await dataLocation.recoverMissingLocation()) {
+      app.quit();
+      return;
+    }
+  } catch (err) {
+    await dialog.showMessageBox({ type: 'error', title: '无法连接原数据目录', message: `数据目录定位失败，客户端将退出：${err.message}` });
+    app.quit();
+    return;
+  }
   mainWindow = createWindow();
   // 备份过期清理放后台，不阻塞启动。
   setTimeout(() => dataLocation.cleanupExpiredBackup(), 3000);
