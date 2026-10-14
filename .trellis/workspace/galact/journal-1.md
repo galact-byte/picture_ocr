@@ -260,3 +260,42 @@
 
 - 取得发布批准后按现有 CI 发布 v0.11.3，回读标签、正文及 EXE/Web ZIP 两份资产；客户恢复包保持私下交付。
 - 原项目组归属需可验证的原记录或用户对应关系；原生手机相机和锁屏仍需真机验证。
+
+
+## Session 8: 发布 v0.11.3 并核验正式资产
+<!-- trellis-session: v=2 fp=1c385ab44b9616c2 -->
+
+**Date**: 2026-10-14
+**Task**: 发布 v0.11.3 并核验正式资产
+**Branch**: `main`
+
+### Summary
+
+用户授权发布后完成源码复验、main 与标签推送、CI 构建及两份正式下载校验，预设引导任务归档。
+
+### Main Changes
+
+- v0.11.3 标签固定在 d1a7c324d6bb735f3b771a879e7ecb2817b2af79，GitHub Actions 38544444495 成功。
+- 正式版本：https://github.com/galact-byte/picture_ocr/releases/tag/v0.11.3；包含 Windows EXE 与 Web ZIP，远端发布正文与人工说明一致。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `255df1b` | feat: 完成批量导出、旧模板引导与界面状态修复 |
+| `9338c45` | docs: 同步存储与界面契约及任务验收记录 |
+| `b645436` | chore: 准备 v0.11.3 版本与发布说明 |
+
+### Testing
+
+- [OK] 发布源码类型检查、构建、70 项数据目录测试、Electron 重连、预设/列表/图片状态双端回归通过。
+- [OK] 下载两份正式资产核对大小及 GitHub SHA-256；EXE 版本 0.11.3；Web ZIP CRC、版本、路径范围及文档/启动脚本文本均通过。
+- [OK] 远端源码树匹配验收提交；运行时客户恢复数据未入库；正式 EXE 未对用户数据库启动，行为回归在隔离 Electron 环境完成。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 原恢复库多系统归属仍需原始记录或明确对应关系；本次升级不自动补回缺失数据。
