@@ -28,7 +28,9 @@ const ImageThumbnail: React.FC<ImageThumbnailProps> = ({
   const { confirm, dialog } = useConfirmDialog();
   const { projectId } = useAppContext();
   // 图片字节存在独立 store，按需取；未迁移的老项目会直接命中内联字节。
-  const src = useImageSrc(projectId, image);
+  const imageState = useImageSrc(projectId, image);
+  const placeholder = imageState.status === 'loading' ? '加载中…'
+    : imageState.status === 'missing' ? '图片缺失' : '读取失败';
 
   const handleFinishCaption = () => {
     if (captionValue.trim() !== image.caption) {
@@ -56,15 +58,16 @@ const ImageThumbnail: React.FC<ImageThumbnailProps> = ({
         className="relative h-40 w-40 overflow-hidden border border-slate-200 bg-slate-50 p-1 cursor-pointer"
         onClick={() => onClick(image.id)}
       >
-        {src ? (
+        {imageState.status === 'loaded' && imageState.src ? (
           <img
-            src={src}
+            src={imageState.src}
+            onError={imageState.onError}
             alt={image.fileName}
             className="h-full w-full object-cover"
             draggable={false}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs text-slate-400">加载中…</div>
+          <div className={`flex h-full w-full items-center justify-center text-xs ${imageState.status === 'error' ? 'bg-red-50 text-red-700' : imageState.status === 'missing' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>{placeholder}</div>
         )}
 
         {/* Hover overlay */}

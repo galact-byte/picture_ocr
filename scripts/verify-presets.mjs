@@ -18,4 +18,16 @@ test('预设拒绝超长名称/ID与跨分类重复模板 ID', () => {
     const copy=structuredClone(preset);change(copy);assert.throws(()=>api.parsePreset(copy),/预设格式错误/);
   }
 });
+const legacyCategories = ['physical','network','security','host','system-mgmt','app','management','other'].map((id,index)=>({id:`cat-${id}`,name:`历史分类 ${index+1}`,type:id==='management'?'freestyle':'checklist',order:index+1,defaultItems:[{id:`legacy-item-${index}`,label:`历史检查项 ${index+1}`,required:true}]}));
+const legacyDocument = {categories:legacyCategories,assets:[{name:'私密资产',items:[{images:[{data:'私密图片'}]}]}],meta:{unitName:'私密单位'}};
+test('识别旧等保模板只提取分类、检查项与兼容配置', () => {
+  assert.equal(typeof api.legacyPresetFromDocument,'function');
+  const result=api.legacyPresetFromDocument(legacyDocument);
+  assert(result);assert.equal(result.name,'旧项目等保模板');assert.deepEqual(result.profile,api.LEGACY_PROFILE);assert.deepEqual(result.categories,legacyCategories);
+  assert(!JSON.stringify(result).includes('私密'));result.categories[0].defaultItems[0].label='变更';assert.equal(legacyDocument.categories[0].defaultItems[0].label,'历史检查项 1');
+});
+test('仅单位必填、通用模板、未知或损坏项目不识别为旧等保', () => {
+  assert.equal(typeof api.legacyPresetFromDocument,'function');
+  for(const doc of [null,{},legacyDocument.categories,{categories:[]},{categories:preset.categories,profile:api.LEGACY_PROFILE},{...legacyDocument,profile:api.GENERIC_PROFILE},{...legacyDocument,categories:legacyCategories.slice(1)},{...legacyDocument,categories:legacyCategories.map((c,i)=>i===0?{...c,type:'freestyle'}:c)},{...legacyDocument,categories:legacyCategories.map((c,i)=>i===0?{...c,defaultItems:null}:c)}]) assert.equal(api.legacyPresetFromDocument(doc),null);
+});
 process.exitCode=failed?1:0;

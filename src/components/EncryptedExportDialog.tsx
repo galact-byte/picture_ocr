@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_PANEL, DIALOG_TITLE, FIELD_INPUT, FIELD_LABEL } from './dialogStyles';
 
 interface EncryptedExportDialogProps {
   open: boolean;
@@ -40,21 +41,21 @@ const EncryptedExportDialog: React.FC<EncryptedExportDialogProps> = ({ open, tit
   };
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!submitting) onClose(); }}>
-      <div className="w-full max-w-md bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <h2 className="text-lg font-bold text-slate-950">{title}</h2>
-        <div className="mt-5 space-y-4">
-          <label className="block text-sm font-medium text-slate-700">设置密码
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" disabled={submitting} className="mt-1.5 w-full border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+    <div role="dialog" aria-modal="true" aria-labelledby="encrypted-export-title" className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!submitting) onClose(); }}>
+      <div className={`${DIALOG_PANEL} max-w-md`} onClick={(event) => event.stopPropagation()}>
+        <div className={DIALOG_HEADER}><h2 id="encrypted-export-title" className={DIALOG_TITLE}>{title}</h2></div>
+        <div className={`${DIALOG_BODY} space-y-4`}>
+          <label className={FIELD_LABEL}>设置密码
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" disabled={submitting} className={FIELD_INPUT} />
           </label>
-          <label className="block text-sm font-medium text-slate-700">确认密码
-            <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" disabled={submitting} className="mt-1.5 w-full border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          <label className={FIELD_LABEL}>确认密码
+            <input type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" disabled={submitting} className={FIELD_INPUT} />
           </label>
+          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         </div>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <div className="mt-6 flex justify-end gap-2">
-          <button onClick={onClose} disabled={submitting} className="border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50">取消</button>
-          <button onClick={() => void handleExport()} disabled={submitting} className="bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{submitting ? '正在加密...' : '导出 .evidence'}</button>
+        <div className={DIALOG_FOOTER}>
+          <button onClick={onClose} disabled={submitting} className={BUTTON_SECONDARY}>取消</button>
+          <button onClick={() => void handleExport()} disabled={submitting} className={BUTTON_PRIMARY}>{submitting ? '正在加密...' : '导出 .evidence'}</button>
         </div>
       </div>
     </div>

@@ -112,6 +112,133 @@ export async function failures() {
   await click('重试',dialog());await until(()=>!button('保存',dialog()).disabled,'重试加载');await click('取消',dialog());
   return '非法输入/存储失败保留原默认，加载失败禁止创建且可重试';
 }
+const legacyCategories = ['physical','network','security','host','system-mgmt','app','management','other'].map((id,index)=>({id:`cat-${id}`,name:`历史分类 ${index+1}`,type:id==='management'?'freestyle':'checklist',order:index+1,defaultItems:[{id:`legacy-item-${index}`,label:`历史检查项 ${index+1}`,required:true}]}));
+const legacyDoc = {id:'legacy-onboarding',groupId:null,meta:{projectCode:'',projectName:'旧项目',unitName:'原单位',reportDate:'',systemName:'旧系统'},categories:legacyCategories,assets:[{id:'old-asset',categoryId:'cat-physical',name:'原资产',items:[{id:'old-item',label:'原检查项',required:true,images:[{id:'old-image',data:'data:image/png;base64,b2xk'}]}]}],createdAt:1,updatedAt:1};
+async function rawStore(action) {
+  const connection = await new Promise((resolve,reject)=>{const req=indexedDB.open('evidence-collector-db');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+  try { return await new Promise((resolve,reject)=>{const tx=connection.transaction(['projects','projectSummaries','projectGroups','settings','images'],'readwrite');action(tx);tx.oncomplete=()=>resolve();tx.onabort=tx.onerror=()=>reject(tx.error);}); }
+  finally {connection.close();}
+}
+export async function seedOnboarding(kind='legacy') {
+  await rawStore(tx=>{
+    for(const name of ['projects','projectSummaries','projectGroups','settings','images']) tx.objectStore(name).clear();
+    const docs=kind==='new' ? [] : [structuredClone(legacyDoc)];
+    if(kind==='mixed') docs.push({...structuredClone(legacyDoc),id:'generic',categories:DEFAULT_PRESET.categories,profile:DEFAULT_PRESET.profile});
+    if(kind==='different') docs.push({...structuredClone(legacyDoc),id:'different',categories:legacyCategories.map((c,i)=>i===0?{...c,name:'不同模板'}:c)});
+    for(const doc of docs) {tx.objectStore('projects').put(doc);tx.objectStore('projectSummaries').put({id:doc.id,groupId:null,meta:doc.meta,profile:doc.profile,assetCount:1,createdAt:1,updatedAt:1});}
+    if(kind==='default') tx.objectStore('settings').put({id:'defaultPreset',preset:DEFAULT_PRESET});
+  });
+  localStorage.setItem('evidence-image-migration-v5',JSON.stringify({completedIds:['legacy-onboarding','generic','different'],damagedIds:[]}));
+}
+export async function onboardingStorage() {
+  assert(typeof db.getLegacyPresetCandidate==='function' && typeof db.completeLegacyPresetOnboarding==='function','引导公共存储接口存在');
+  for(const kind of ['new','mixed','different','default']) {await seedOnboarding(kind);assert(await db.getLegacyPresetCandidate()===null,`${kind} 不误触发`);}
+  await seedOnboarding();
+  const before = await db.loadProject(legacyDoc.id,{migrateLegacy:false});
+  const calls=[];const get=IDBObjectStore.prototype.get;const transaction=IDBDatabase.prototype.transaction;
+  IDBObjectStore.prototype.get=function(...args){calls.push(this.name);return get.apply(this,args);};
+  IDBDatabase.prototype.transaction=function(names,mode,...args){assert(mode!=='readwrite','检测不能打开写事务');return transaction.call(this,names,mode,...args);};
+  let candidate;
+  try {candidate=await db.getLegacyPresetCandidate();} finally {IDBObjectStore.prototype.get=get;IDBDatabase.prototype.transaction=transaction;}
+  assert(candidate && candidate.categories.length===8,'无 profile 旧等保被识别');assert(!calls.includes('images'),'检测不读取图片');
+  IDBDatabase.prototype.transaction=function(names,mode,...args){if(mode==='readwrite'&&[].concat(names).includes('settings'))throw Error('受控引导保存失败');return transaction.call(this,names,mode,...args);};
+  try {await db.completeLegacyPresetOnboarding(candidate).then(()=>{throw Error('失败不应成功');},e=>assert(e.message.includes('受控'),'保存失败可见'));} finally {IDBDatabase.prototype.transaction=transaction;}
+  assert(await db.getLegacyPresetCandidate(),'失败不记录完成');
+  const adopted=await db.completeLegacyPresetOnboarding(candidate);equal(adopted,candidate,'沿用事务完成返回选择');assert(await db.getLegacyPresetCandidate()===null,'沿用持久化不再提示');
+  equal(await db.loadProject(legacyDoc.id,{migrateLegacy:false}),before,'不改原项目/图片');assert(!JSON.stringify(adopted).includes('原单位')&&!JSON.stringify(adopted).includes('原资产'),'模板不含身份或实例');
+  await seedOnboarding();await db.completeLegacyPresetOnboarding(null);assert(await db.getLegacyPresetCandidate()===null,'通用选择持久化');equal(await db.getDefaultPreset(),DEFAULT_PRESET,'通用默认保持');
+  await seedOnboarding();candidate=await db.getLegacyPresetCandidate();await db.saveDefaultPreset(fixture);equal(await db.completeLegacyPresetOnboarding(candidate),fixture,'其他窗口默认不能被覆盖');
+  await seedOnboarding();
+  const put=IDBObjectStore.prototype.put;
+  IDBObjectStore.prototype.put=function(value,...args){if(this.name==='settings'&&value.id==='legacyPresetOnboarding') throw Error('受控事务中止');return put.call(this,value,...args);};
+  try {await db.completeLegacyPresetOnboarding(candidate).then(()=>{throw Error('中止不能成功');},e=>assert(e.message.includes('受控'),'中止有错误'));} finally {IDBObjectStore.prototype.put=put;}
+  equal(await db.getDefaultPreset(),DEFAULT_PRESET,'标记写失败时默认预设同事务回滚');assert(await db.getLegacyPresetCandidate(),'中止不记录完成');
+  await seedOnboarding();
+  await rawStore(tx=>tx.objectStore('projects').put({...legacyDoc,categories:null}));assert(await db.getLegacyPresetCandidate()===null,'损坏文档不推荐');
+  await seedOnboarding();
+  return '旧模板引导存储：识别边界、只读检测、失败重试、持久选择、原文档不变与并发默认保护';
+}
+export function instrumentOnboarding() {
+  const reads={documents:0,images:0};const original=IDBObjectStore.prototype.get;
+  IDBObjectStore.prototype.get=function(...args){if(this.name==='projects')reads.documents++;if(this.name==='images')reads.images++;return original.apply(this,args);};
+  return reads;
+}
+export async function onboardingLifecycle() {
+  const get=IDBObjectStore.prototype.get;
+  IDBObjectStore.prototype.get=function(...args){if(this.name==='projects')throw Error('受控旧模板读取失败');return get.apply(this,args);};
+  try {
+    await click('新建项目');await until(()=>dialog()?.querySelector('[role="alert"]'),'模板读取失败提示');
+    assert(button('保存',dialog()).disabled,'旧模板读取失败禁止创建');
+  } finally {IDBObjectStore.prototype.get=get;}
+  await click('重试',dialog());await until(()=>button('沿用旧项目模板作为默认',dialog()),'旧模板读取重试');
+  dialog().click();await until(()=>!dialog(),'关闭引导');
+  const open=indexedDB.open;
+  indexedDB.open=function(...args){
+    const request=open.apply(this,args);
+    Object.defineProperty(request,'onsuccess',{set(callback){request.addEventListener('success',event=>setTimeout(()=>callback.call(request,event),500));}});
+    return request;
+  };
+  try {
+    await click('新建项目');assert(button('保存',dialog()).disabled,'读取中禁止保存');
+    await click('取消',dialog());await pause(1000);assert(!dialog(),'关闭后过期初始化不重开引导');
+    await click('新建项目');window.location.hash=`/project/${legacyDoc.id}`;
+    await until(()=>button('返回项目列表'),'初始化期间卸载列表');await pause(1000);assert(!dialog(),'卸载后过期初始化不显示引导');
+  } finally {indexedDB.open=open;}
+  await click('返回项目列表');await until(()=>button('新建项目'),'重新挂载列表');
+  await openOnboarding();
+  const transaction=IDBDatabase.prototype.transaction;let commits=0;
+  IDBDatabase.prototype.transaction=function(names,mode,...args){
+    const tx=transaction.call(this,names,mode,...args);
+    if(mode==='readwrite'&&[].concat(names).includes('settings')){
+      commits++;
+      Object.defineProperty(tx,'oncomplete',{set(callback){tx.addEventListener('complete',event=>setTimeout(()=>callback.call(tx,event),400));}});
+    }
+    return tx;
+  };
+  try {
+    const adopt=button('沿用旧项目模板作为默认',dialog());adopt.click();adopt.click();await pause(100);
+    assert([...dialog().querySelectorAll('button')].every(el=>el.disabled),'保存中按钮全部锁定');
+    dialog().click();document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert(dialog(),'保存中背景和 Escape 不关闭');
+    await until(()=>dialog()?.querySelectorAll('input').length===5,'真实提交后进入表单');assert(commits===1,'连续点击只提交一次');
+  } finally {IDBDatabase.prototype.transaction=transaction;}
+  await click('取消',dialog());
+  await seedOnboarding();
+  return '旧模板读取失败重试、关闭/卸载拒绝迟到初始化、同步防重入及保存中关闭保护';
+}
+export async function openOnboarding() {
+  await until(()=>button('新建项目'),'列表');button('新建项目').focus();await click('新建项目');await until(()=>button('沿用旧项目模板作为默认',dialog()),'旧模板引导');
+  assert(dialog().getAttribute('aria-labelledby'),'引导有命名');
+}
+export async function onboardingUi() {
+  const before=await db.loadProject(legacyDoc.id,{migrateLegacy:false});
+  const original=IDBDatabase.prototype.transaction;
+  IDBDatabase.prototype.transaction=function(names,mode,...args){if(mode==='readwrite'&&[].concat(names).includes('settings'))throw Error('受控引导保存失败');return original.call(this,names,mode,...args);};
+  try {await click('沿用旧项目模板作为默认',dialog());assert(dialog().textContent.includes('受控引导保存失败'),'失败显示且保留引导');} finally {IDBDatabase.prototype.transaction=original;}
+  await click('沿用旧项目模板作为默认',dialog());await until(()=>dialog()?.querySelectorAll('input').length===5,'进入新建表单');
+  input(dialog().querySelectorAll('input')[2],'新单位');input(dialog().querySelectorAll('input')[4],'继承模板系统');await click('保存',dialog());await until(()=>!dialog(),'完成创建');
+  const created=(await db.listProjects()).find(p=>p.meta.systemName==='继承模板系统');assert(created,'新系统在列表');const doc=await db.loadProject(created.id,{migrateLegacy:false});
+  equal(doc.categories,legacyCategories,'沿用分类与检查项');equal(doc.profile,LEGACY_PROFILE,'沿用旧配置');assert(doc.assets.length===0,'不复制原资产或图片');
+  equal(await db.loadProject(legacyDoc.id,{migrateLegacy:false}),before,'原项目保持');
+  await click('新建项目');await until(()=>button('保存',dialog()),'再次创建');assert(!button('沿用旧项目模板作为默认',dialog()),'新建不重复提示');await click('取消',dialog());
+  return '真实引导界面：保存失败保留、重试沿用、新建快照、无原资产图片、原项目不变与再次打开';
+}
+export async function onboardingForm(expected='generic') {
+  await until(()=>dialog()?.querySelectorAll('input').length===5 && !button('保存',dialog()).disabled,'新建表单可用');
+  assert(!button('沿用旧项目模板作为默认',dialog()),'不重复显示引导');
+  equal(await db.getDefaultPreset(),expected==='legacy'?{version:1,name:'旧项目等保模板',categories:legacyCategories,profile:LEGACY_PROFILE}:DEFAULT_PRESET,'重开保持模板选择');
+  await click('取消',dialog());
+}
+export async function onboardingGeneric() {
+  await until(()=>dialog()?.querySelectorAll('input').length===5 && !button('保存',dialog()).disabled,'通用新建表单');
+  input(dialog().querySelectorAll('input')[4],'通用选择系统');await click('保存',dialog());await until(()=>!dialog(),'通用可空单位创建');
+  const created=(await db.listProjects()).find(p=>p.meta.systemName==='通用选择系统');
+  equal((await db.loadProject(created.id,{migrateLegacy:false})).categories,DEFAULT_PRESET.categories,'通用选择创建通用分类');
+}
+export async function onboardingLayout() {
+  assert(document.documentElement.scrollWidth<=innerWidth,'引导不横向溢出');
+  for(const el of dialog().querySelectorAll('button')) {const r=el.getBoundingClientRect();assert(r.height>=44 && r.left>=0 && r.right<=innerWidth,'引导按钮完整且可触控');}
+  return '旧模板引导无溢出且按钮完整';
+}
 export async function layout() {
   for (const close of document.querySelectorAll('[aria-label="关闭提示"]')) close.click();
   if(!dialog()) await click('模板预设');await pause(80);

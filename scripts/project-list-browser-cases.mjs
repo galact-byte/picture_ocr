@@ -1,5 +1,7 @@
 import * as db from '../src/utils/db';
 import JSZip from 'jszip';
+import * as packages from '../src/utils/exportImport';
+import { buildStoredImage } from '../src/utils/imageStore';
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 export async function until(check, label) {
@@ -168,6 +170,178 @@ export async function exportAndImport() {
   return '异常组真实 ZIP 导出、合并/覆盖导入及图片与归属检查';
 }
 
+export async function batchExport() {
+  const fixtureGroup = { id: 'batch', projectName: '批量测试项目', projectCode: 'BATCH', unitName: '测试单位', reportDate: '2026-10-13', createdAt: 1, updatedAt: 1 };
+  await db.saveProjectGroup(fixtureGroup);
+  const fixtures = [];
+  for (let i = 0; i < 15; i++) {
+    const name = ['Alpha', 'alpha', 'A/B', 'A\\B', '😀'.repeat(130)][i] ?? `批量系统${i}`;
+    const doc = db.createProjectDocument({ ...fixtureGroup, systemName: name }, 'batch');
+    doc.id = `batch${i}`;
+    doc.profile = { ...doc.profile, reportTitle: '批量测试报告', exportFilePrefix: 'QA', unitFieldLabel: '测试单位', unitFieldRequired: false };
+    if (i === 4) { doc.meta.projectName = '超长项目'.repeat(80); doc.profile.exportFilePrefix = '超长前缀'.repeat(80); }
+    doc.assets = [{ id: 'batch-asset', categoryId: doc.categories[0].id, name: '测试资产', items: [{ id: 'batch-item', label: '截图', required: true, fromTemplateId: doc.categories[0].defaultItems[0]?.id ?? null, images: [{ id: `batch-image${i}`, fileName: 'tiny.png', data: onePixel, caption: '批量图片', uploadedAt: 1 }] }] }];
+    fixtures.push(doc);
+    if (i % 2) await db.saveProjectWithImages(doc); else await db.saveProject(doc);
+  }
+  localStorage.setItem('evidence-image-migration-v5', JSON.stringify({ completed: (await db.listProjects()).map(doc => doc.id), damaged: [] }));
+  // 从其他系统返回列表，使新摘要进入生产组件。
+  window.location.hash = '/project/solo1'; await until(() => !!button('返回项目列表'), '批量夹具刷新'); await back();
+  await tab('groups'); await search(''); await expand('batch');
+  const objectUrls = new Map(); const downloads = [];
+  const createObjectURL = URL.createObjectURL; const anchorClick = HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = value => { const url = createObjectURL(value); objectUrls.set(url, value); return url; };
+  HTMLAnchorElement.prototype.click = function () { if (this.download) downloads.push({ name: this.download, blob: objectUrls.get(this.href) }); else anchorClick.call(this); };
+  const selectAll = async () => { groupRow('batch').querySelector('[aria-label="全选当前可见系统"]').click(); await pause(60); };
+  const start = async () => { await click('导出选中', groupRow('batch')); await until(() => !document.querySelector('[data-batch-status]'), '批量导出结束'); };
+  const expectedFailure = async (message) => {
+    const count = downloads.length;
+    await start();
+    assert(downloads.length === count, `失败无下载：${message}`);
+    assert(document.body.textContent.includes(message), `明确错误：${message}`);
+    assert(groupRow('batch').querySelector('input:checked'), '失败保留选择');
+    assert(!button('导出选中', groupRow('batch')).disabled, '失败释放忙碌状态');
+  };
+  const before = JSON.stringify(await db.loadProject('batch1'));
+  const started = performance.now();
+  try {
+    await selectAll();
+    const getForSlowRead = IDBObjectStore.prototype.get;
+    const originalTransaction = IDBDatabase.prototype.transaction;
+    let sourceWrites = 0;
+    const projectReads = [];
+    IDBDatabase.prototype.transaction = function (names, mode, ...args) {
+      if (mode === 'readwrite' && (Array.isArray(names) ? names : [names]).some(name => ['projects', 'projectSummaries', 'images'].includes(name))) sourceWrites++;
+      return originalTransaction.call(this, names, mode, ...args);
+    };
+    IDBObjectStore.prototype.get = function (id) {
+      const request = getForSlowRead.call(this, id);
+      if (this.name === 'projects') {
+        projectReads.push(id);
+        if (projectReads.length === 1) {
+          const descriptor = Object.getOwnPropertyDescriptor(IDBRequest.prototype, 'onsuccess');
+          Object.defineProperty(request, 'onsuccess', { set: callback => descriptor.set.call(request, event => setTimeout(() => callback(event), 300)) });
+        }
+      }
+      return request;
+    };
+    const exportButton = button('导出选中', groupRow('batch'));
+    try {
+      exportButton.click(); exportButton.click(); await pause(60);
+      assert(document.querySelector('[data-batch-status]'), '导出期间有可访问进度');
+      assert(projectReads.length === 1, '首个系统读取等待时不并行读取其他系统');
+      assert(document.querySelector('input[type="search"]').matches(':disabled') && document.querySelector('nav button').matches(':disabled'), '导出锁定搜索和切页');
+      assert(groupRow('batch').querySelector('input').matches(':disabled') && button('删除选中', groupRow('batch')).matches(':disabled') && button('打开', systemRow('batch1')).matches(':disabled'), '导出锁定选择、删除和打开');
+      await until(() => downloads.length === 1 && !document.querySelector('[data-batch-status]'), '15 系统一次下载');
+      assert(projectReads.length === 15 && new Set(projectReads).size === 15, '每个所选文档仅读取一次');
+      assert(sourceWrites === 0, '导出不创建源文档、摘要或图片的写事务');
+    } finally {
+      IDBObjectStore.prototype.get = getForSlowRead;
+      IDBDatabase.prototype.transaction = originalTransaction;
+    }
+    const outer = await JSZip.loadAsync(downloads[0].blob);
+    const entries = Object.values(outer.files).filter(file => !file.dir);
+    assert(entries.length === 15, '总包包含 15 个系统');
+    assert(new Set(entries.map(file => file.name.toLowerCase())).size === 15, '大小写及净化后同名文件不覆盖');
+    assert(entries.every(file => !/[\\/]/.test(file.name) && file.name.length <= 255 && !/[\uD800-\uDBFF]_(?:\d|20)/.test(file.name)), '子包文件没有路径分隔符、超长文件名或截断代理字符');
+    for (const entry of entries) {
+      const childBlob = await entry.async('blob');
+      const child = await JSZip.loadAsync(childBlob);
+      const manifest = JSON.parse(await child.file('manifest.json').async('string'));
+      const expected = fixtures.find(doc => doc.meta.systemName === manifest.meta.systemName);
+      assert(expected && JSON.stringify(manifest.meta) === JSON.stringify(expected.meta), '子包元数据');
+      assert(entry.name.includes(expected.meta.systemName.slice(0, 2).replace(/[\\/]/g, '_')), '超长项目或前缀仍保留系统名称');
+      assert(manifest.profile.reportTitle === expected.profile.reportTitle, '子包 profile');
+      assert(JSON.stringify(manifest.categories[0].defaultItems) === JSON.stringify(expected.categories[0].defaultItems), '子包分类模板');
+      const image = manifest.categories[0].assets[0].items[0].images[0];
+      assert(await child.file(image.path).async('base64') === onePixel.split(',')[1], '内联与引用图字节完整');
+      for (const mode of ['overwrite', 'merge']) {
+        const imported = await packages.importDataPackage(childBlob, mode, [], expected.categories, expected.meta, expected.profile);
+        assert(imported.success && imported.data.assets[0].items[0].images.length === 1 && imported.data.profile.reportTitle === expected.profile.reportTitle, `真实子包 ${mode} 导入`);
+      }
+    }
+    assert(JSON.stringify(await db.loadProject('batch1')) === before, '批量导出不写回源文档');
+    const elapsed = Math.round(performance.now() - started);
+    // 搜索范围只包含匹配系统。
+    await search('批量系统14'); await selectAll(); downloads.length = 0; await start();
+    assert(Object.values((await JSZip.loadAsync(downloads[0].blob)).files).filter(file => !file.dir).length === 1, '搜索全选只导出可见系统');
+    await search(''); await selectAll();
+
+    const get = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function (id) { if (this.name === 'projects' && id === 'batch1') throw new Error('受控批量读取失败'); return get.call(this, id); };
+    try { await expectedFailure('受控批量读取失败'); } finally { IDBObjectStore.prototype.get = get; }
+    await db.deleteProject('batch1');
+    await expectedFailure('系统不存在或已被删除');
+    await db.saveProjectWithImages(fixtures[1]);
+    const missing = structuredClone(fixtures[2]); missing.assets[0].items[0].images[0].data = ''; await db.saveProject(missing);
+    await expectedFailure('缺少图片'); await db.saveProject(fixtures[2]);
+    const archive = { archivedAt: 1, fileName: 'QA.zip', locationLabel: '测试目录', imageCount: 1, imageBytes: 1, fingerprint: 'a'.repeat(64) };
+    await db.commitProjectArchive('batch1', ['batch-image1'], archive);
+    await expectedFailure('已归档');
+    window.location.hash = '/project/solo1'; await until(() => !!button('返回项目列表'), '归档摘要刷新'); await back(); await tab('groups'); await expand('batch'); await selectAll();
+    await expectedFailure('已归档');
+    await db.restoreProjectArchive('batch1', archive.fingerprint, [buildStoredImage('batch1', fixtures[1].assets[0].items[0].images[0])]);
+    window.location.hash = '/project/solo1'; await until(() => !!button('返回项目列表'), '恢复摘要刷新'); await back(); await tab('groups'); await expand('batch'); await selectAll();
+
+    const read = FileReader.prototype.readAsArrayBuffer;
+    FileReader.prototype.readAsArrayBuffer = function () { throw new Error('受控批量打包失败'); };
+    try { await expectedFailure('受控批量打包失败'); } finally { FileReader.prototype.readAsArrayBuffer = read; }
+    downloads.length = 0; await start(); assert(downloads.length === 1, '失败后可重试成功');
+    // 独立列表使用同一入口；空选择禁用、当前可见子集一次下载。
+    await tab('independent'); await search('独立系统');
+    assert(button('导出选中').disabled, '独立列表空选择禁用');
+    for (const row of rows().slice(1, 4)) row.querySelector('input').click();
+    await pause(60); downloads.length = 0; await click('导出选中 3');
+    await until(() => downloads.length === 1 && !document.querySelector('[data-batch-status]'), '独立批量导出');
+    assert(Object.values((await JSZip.loadAsync(downloads[0].blob)).files).filter(file => !file.dir).length === 3, '独立批量只导出选中三系统');
+    return `15 系统批量 ZIP、单次下载/防重入、图片/模板/profile、覆盖/合并、选择范围、读取/缺图/归档/打包失败重试；夹具打包及导入 ${elapsed}ms`;
+  } finally {
+    HTMLAnchorElement.prototype.click = anchorClick; URL.createObjectURL = createObjectURL;
+    await db.deleteProjectGroup('batch');
+    window.location.hash = '/project/solo1'; await until(() => !!button('返回项目列表'), '清理批量夹具'); await back(); await tab('groups'); await search('');
+  }
+}
+
+export async function prepareBatchKeyboard() {
+  await tab('independent'); await search('独立系统01');
+  document.querySelector('[aria-label="全选当前可见系统"]').focus();
+}
+
+export async function batchBoundaries() {
+  const urls = []; const original = URL.createObjectURL;
+  URL.createObjectURL = blob => { urls.push(blob); return original(blob); };
+  try {
+    let emptyRejected = false;
+    try { await packages.exportBatchDataPackage([], () => {}); } catch { emptyRejected = true; }
+    assert(emptyRejected && urls.length === 0, '工具边界空集合无下载');
+    const controller = new AbortController();
+    let cancelled = false;
+    try { await packages.exportBatchDataPackage([{ id: 'solo1', name: '独立系统01', archived: false }], () => controller.abort(), controller.signal); } catch { cancelled = true; }
+    assert(cancelled && urls.length === 0, '取消信号阻止下载');
+    await tab('independent'); await search('独立系统02');
+    systemRow('solo2').querySelector('input').click(); await pause(60);
+    const get = IDBObjectStore.prototype.get; const anchorClick = HTMLAnchorElement.prototype.click;
+    let downloads = 0;
+    HTMLAnchorElement.prototype.click = function () { if (this.download) downloads++; else anchorClick.call(this); };
+    IDBObjectStore.prototype.get = function (id) {
+      const request = get.call(this, id);
+      if (this.name === 'projects' && id === 'solo2') {
+        const descriptor = Object.getOwnPropertyDescriptor(IDBRequest.prototype, 'onsuccess');
+        Object.defineProperty(request, 'onsuccess', { set: callback => descriptor.set.call(request, event => setTimeout(() => callback(event), 400)) });
+      }
+      return request;
+    };
+    try {
+      button('导出选中 1').click(); await pause(60);
+      assert(document.querySelector('[data-batch-status]'), '卸载前正在导出');
+      window.location.hash = '/project/solo1'; await until(() => !!button('返回项目列表'), '导出期间路由离开列表');
+      await pause(600); assert(downloads === 0, '真实组件卸载取消未完成下载');
+    } finally { IDBObjectStore.prototype.get = get; HTMLAnchorElement.prototype.click = anchorClick; }
+    await back();
+    return '空集合、取消信号及真实列表卸载无下载';
+  } finally { URL.createObjectURL = original; }
+}
+
 export async function failedLoad() {
   await tab('groups'); await search(''); await expand('single'); await click('打开', systemRow('s1'));
   await until(() => !!button('返回项目列表'), '工作区');
@@ -235,7 +409,8 @@ export async function groupLayout() {
   systemRow('g1').querySelector('input').click(); await pause(60);
   assert(button('删除选中', groupRow('multi')), '选择后批量操作可达');
   assert(document.documentElement.scrollWidth <= innerWidth, '选中工具不造成溢出');
-  systemRow('g1').querySelector('input').click(); await pause(60);
+  assert(button('导出选中', groupRow('multi')).getBoundingClientRect().height >= 44, '批量导出点击高度至少 44px');
+  groupRow('multi').scrollIntoView({ block: 'start' }); await pause(100);
   const more = groupRow('multi').querySelector('summary'); more.click(); await pause(80);
   const rect = more.nextElementSibling.getBoundingClientRect();
   assert(rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight, '项目菜单位于窗口内');
@@ -269,7 +444,11 @@ export async function layout() {
   const lastRect = last.nextElementSibling.getBoundingClientRect();
   assert(lastRect.top >= 0 && lastRect.bottom <= innerHeight && lastRect.bottom <= last.getBoundingClientRect().top, '底部菜单向上展开');
   last.click(); window.scrollTo(0, 0); await pause(100);
-  return '列表与菜单无溢出、外部点击关闭、单菜单与底部向上展开';
+  for (const system of rows().slice(0, 15)) system.querySelector('input').click();
+  await pause(60);
+  assert(button('导出选中 15').getBoundingClientRect().height >= 44, '独立批量导出点击高度至少 44px');
+  assert(document.documentElement.scrollWidth <= innerWidth, '独立选中操作区无溢出');
+  return '列表与菜单无溢出、外部点击关闭、单菜单与底部向上展开、15 系统选中工具栏';
 }
 
 export async function startLan(scope) {

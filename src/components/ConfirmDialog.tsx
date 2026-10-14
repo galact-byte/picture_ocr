@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { BUTTON_DANGER_SOLID, BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_TITLE } from './dialogStyles';
 
 interface ConfirmDialogOptions {
   title: string;
@@ -72,17 +73,18 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ options, onCancel, onConf
             )}
           </div>
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-slate-950">{options.title}</h2>
+            <h2 className={DIALOG_TITLE}>{options.title}</h2>
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{options.message}</p>
           </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4">
-          <button onClick={onCancel} className="border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={onCancel} className={BUTTON_SECONDARY}>
             {options.cancelText || '取消'}
           </button>
           <button
             onClick={onConfirm}
-            className={`border px-4 py-2 text-sm font-semibold text-white ${isDanger ? 'border-red-600 bg-red-600 hover:bg-red-700' : 'border-blue-600 bg-blue-600 hover:bg-blue-700'}`}
+            type="button"
+            className={isDanger ? BUTTON_DANGER_SOLID : BUTTON_PRIMARY}
           >
             {options.confirmText || '确认'}
           </button>

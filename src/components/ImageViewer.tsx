@@ -18,7 +18,10 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 }) => {
   const currentImage = images[currentIndex];
   const { projectId } = useAppContext();
-  const src = useImageSrc(projectId, currentImage);
+  const imageState = useImageSrc(projectId, currentImage);
+  const src = imageState.src;
+  const placeholder = imageState.status === 'loading' ? '图片加载中…'
+    : imageState.status === 'missing' ? '图片缺失' : '图片读取失败';
   const viewportRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -198,6 +201,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
           <img
             ref={imageRef}
             src={src}
+            onError={imageState.onError}
             alt={currentImage.fileName}
             className="max-w-full max-h-full object-contain rounded-lg select-none"
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, cursor: view.scale > 1 ? dragging ? 'grabbing' : 'grab' : 'default', touchAction: view.scale > 1 ? 'none' : 'auto' }}
@@ -229,7 +233,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
             draggable={false}
           />
         ) : (
-          <div className="flex h-40 w-64 items-center justify-center rounded-lg bg-black/40 text-sm text-white/80">图片加载中…</div>
+          <div className={`flex h-40 w-64 items-center justify-center rounded-lg text-sm ${imageState.status === 'error' ? 'bg-red-950/70 text-red-200' : imageState.status === 'missing' ? 'bg-amber-950/70 text-amber-200' : 'bg-black/40 text-white/80'}`}>{placeholder}</div>
         )}
       </div>
 

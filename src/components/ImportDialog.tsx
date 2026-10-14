@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { isEvidencePackageFile } from '../utils/evidencePackage';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_DESCRIPTION, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE, FIELD_INPUT, FIELD_LABEL } from './dialogStyles';
 
 interface ImportResultInfo {
   success: boolean;
@@ -65,101 +66,87 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
   const disableActions = !selectedFile || (isEncrypted && !password) || importing;
   const showSuccess = result?.success === true;
 
+  const modeButton = 'flex min-h-16 flex-col items-start justify-center rounded-[2px] border px-4 py-3 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50';
+
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="import-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { if (!importing) onClose(); }}>
-      <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="import-dialog-title" className="text-lg font-bold text-gray-800 mb-1">导入数据包</h2>
-        <p className="mb-4 text-sm text-gray-500">目标项目：<span className="font-medium text-slate-800">{targetProjectName}</span></p>
+    <div role="dialog" aria-modal="true" aria-labelledby="import-dialog-title" className={DIALOG_OVERLAY} onClick={() => { if (!importing) onClose(); }}>
+      <div className={`${DIALOG_PANEL} max-w-md`} onClick={(e) => e.stopPropagation()}>
+        <div className={DIALOG_HEADER}>
+          <div className="min-w-0">
+            <h2 id="import-dialog-title" className={DIALOG_TITLE}>导入数据包</h2>
+            <p className={DIALOG_DESCRIPTION}>目标项目：<span className="font-medium text-slate-900">{targetProjectName}</span></p>
+          </div>
+        </div>
 
         {showSuccess ? (
-          <div>
-            <div role="status" className="mb-4 flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-              <span aria-hidden className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500 text-white">✓</span>
-              <div><div className="font-semibold">导入完成</div><div className="mt-1 leading-5">{result?.message}</div></div>
+          <>
+            <div className={DIALOG_BODY}>
+              <div role="status" className="flex items-start gap-3 border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                <span aria-hidden className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500 text-xs text-white">✓</span>
+                <div>
+                  <div className="font-semibold">导入完成</div>
+                  <div className="mt-1 leading-6">{result?.message}</div>
+                </div>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-            >
-              完成
-            </button>
-          </div>
+            <div className={DIALOG_FOOTER}>
+              <button type="button" onClick={onClose} className={BUTTON_PRIMARY}>完成</button>
+            </div>
+          </>
         ) : (
           <>
-            {/* File selection */}
-            <div className="mb-4">
-              <label className="block text-sm text-gray-600 mb-2">
-                请选择 .zip 或 .evidence 数据包文件
+            <div className={`${DIALOG_BODY} space-y-4`}>
+              <label className={FIELD_LABEL}>
+                数据包文件（.zip 或 .evidence）
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".zip,.evidence"
+                  onChange={handleFileChange}
+                  disabled={importing}
+                  className="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:min-h-9 file:rounded-[2px] file:border file:border-blue-200 file:bg-blue-50 file:px-3 file:text-sm file:text-blue-700 hover:file:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                />
               </label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".zip,.evidence"
-                onChange={handleFileChange}
-                disabled={importing}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-              />
+
+              {selectedFile && (
+                <div className="truncate border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  已选择：{selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                </div>
+              )}
+
+              {selectedFile && isEncrypted && (
+                <label className={FIELD_LABEL}>加密采集包密码
+                  <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={importing} className={FIELD_INPUT} />
+                </label>
+              )}
+
+              {result && !result.success && (
+                <div role="alert" className="border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+                  {result.message}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => handleImport('overwrite')} disabled={disableActions} className={`${modeButton} border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100`}>
+                  <span className="font-semibold">覆盖导入</span>
+                  <span className="mt-1 text-xs text-orange-600">替换当前全部数据</span>
+                </button>
+                <button type="button" onClick={() => handleImport('merge')} disabled={disableActions} className={`${modeButton} border-green-200 bg-green-50 text-green-700 hover:bg-green-100`}>
+                  <span className="font-semibold">合并导入</span>
+                  <span className="mt-1 text-xs text-green-600">按资产合并去重</span>
+                </button>
+              </div>
+
+              {importing && (
+                <div role="status" aria-live="polite">
+                  <div className="mb-2 text-sm text-slate-600">正在导入数据，请稍候...</div>
+                  <div className="relative h-1.5 w-full overflow-hidden bg-blue-100 text-blue-500 progress-indeterminate" />
+                </div>
+              )}
             </div>
-
-            {selectedFile && (
-              <div className="mb-4 p-2 bg-gray-50 rounded text-sm text-gray-600 truncate">
-                已选择：{selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-              </div>
-            )}
-
-            {selectedFile && isEncrypted && (
-              <label className="mb-4 block text-sm text-gray-600">加密采集包密码
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={importing} className="mt-2 block w-full border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60" />
-              </label>
-            )}
-
-            {result && !result.success && (
-              <div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-5 text-red-700">
-                {result.message}
-              </div>
-            )}
-
-            {/* Mode selection */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <button
-                type="button"
-                onClick={() => handleImport('overwrite')}
-                disabled={disableActions}
-                className="px-4 py-3 text-sm rounded-lg border-2 border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <div className="font-semibold">覆盖导入</div>
-                <div className="text-xs mt-1 opacity-70">替换当前全部数据</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleImport('merge')}
-                disabled={disableActions}
-                className="px-4 py-3 text-sm rounded-lg border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <div className="font-semibold">合并导入</div>
-                <div className="text-xs mt-1 opacity-70">按资产合并去重</div>
-              </button>
+            <div className={DIALOG_FOOTER}>
+              <button type="button" onClick={onClose} disabled={importing} className={BUTTON_SECONDARY}>取消</button>
             </div>
-
-            {importing && (
-              <div className="mb-4" role="status" aria-live="polite">
-                <div className="mb-2 text-center text-sm text-blue-600">正在导入数据，请稍候...</div>
-                <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-blue-100 text-blue-500 progress-indeterminate" />
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={importing}
-              className="w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              取消
-            </button>
           </>
         )}
       </div>

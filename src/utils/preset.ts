@@ -104,6 +104,26 @@ function parseCategory(value: unknown, index: number, ids: Set<string>, itemIds:
   return { id: raw.id, name: raw.name.trim(), type: raw.type, order: raw.order, defaultItems };
 }
 
+// 分类标识和类型来自旧版内置等保模板；名称与检查项仍以用户项目为准。
+const LEGACY_CATEGORY_TYPES = new Map([
+  ['cat-physical', 'checklist'], ['cat-network', 'checklist'], ['cat-security', 'checklist'],
+  ['cat-host', 'checklist'], ['cat-system-mgmt', 'checklist'], ['cat-app', 'checklist'],
+  ['cat-management', 'freestyle'], ['cat-other', 'checklist'],
+]);
+
+export function legacyPresetFromDocument(value: unknown): ProjectPreset | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  try {
+    const profile = raw.profile === undefined ? LEGACY_PROFILE : parseProfile(raw.profile);
+    if (JSON.stringify(profile) !== JSON.stringify(LEGACY_PROFILE)) return null;
+    const preset = parsePreset({ version: 1, name: '旧项目等保模板', categories: raw.categories, profile });
+    if (preset.categories.length !== LEGACY_CATEGORY_TYPES.size
+      || preset.categories.some(category => LEGACY_CATEGORY_TYPES.get(category.id) !== category.type)) return null;
+    return preset;
+  } catch { return null; }
+}
+
 export function serializePreset(preset: ProjectPreset): string { return `${JSON.stringify(clonePreset(preset), null, 2)}\n`; }
 
 export function sanitizeFileNamePart(value: string, fallback: string): string {

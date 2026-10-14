@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Category, CheckItemTemplate } from '../types';
 import { genId } from '../context/appReducer';
 import { useConfirmDialog } from './ConfirmDialog';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_DESCRIPTION, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE, FIELD_CONTROL } from './dialogStyles';
 
 interface TemplateDialogProps {
   isOpen: boolean;
@@ -83,37 +84,29 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="p-6 pb-3 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-800">模板管理</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            编辑各分类的默认检查项模板。修改仅影响后续新建的资产，已有资产不受影响。
-          </p>
+    <div role="dialog" aria-modal="true" aria-labelledby="template-dialog-title" className={DIALOG_OVERLAY} onClick={onClose}>
+      <div className={`${DIALOG_PANEL} max-w-2xl`} onClick={(e) => e.stopPropagation()}>
+        <div className={DIALOG_HEADER}>
+          <div>
+            <h2 id="template-dialog-title" className={DIALOG_TITLE}>模板管理</h2>
+            <p className={DIALOG_DESCRIPTION}>编辑各分类的默认检查项。修改只影响之后新建的资产，已有资产不变。</p>
+          </div>
         </div>
 
-        {/* Category selector */}
-        <div className="px-6 py-3 border-b border-gray-100">
-          <div className="flex flex-wrap gap-2">
+        <div className="border-b border-slate-200 px-6 py-3">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="选择分类">
             {categories
               .filter((c) => c.type === 'checklist')
               .map((cat) => (
                 <button
                   key={cat.id}
+                  type="button"
                   onClick={() => setSelectedCatId(cat.id)}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  aria-pressed={selectedCatId === cat.id}
+                  className={`min-h-9 rounded-[2px] border px-3 text-sm transition-colors ${
                     selectedCatId === cat.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   {cat.name}
@@ -122,18 +115,17 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
           </div>
         </div>
 
-        {/* Items list */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <p className="text-sm text-gray-600 mb-3 font-medium">
-            {selectedCat.name} - 默认检查项（{items.length} 项）
+        <div className={DIALOG_BODY}>
+          <p className="mb-3 text-sm font-medium text-slate-700">
+            {selectedCat.name} · 默认检查项 {items.length} 项
           </p>
 
           {items.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
+            <div className="border border-dashed border-slate-300 py-8 text-center text-sm text-slate-500">
               暂无默认检查项，请在下方添加
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="border border-slate-200">
               {items.map((item) => (
                 <TemplateItemRow
                   key={item.id}
@@ -147,8 +139,7 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
           )}
         </div>
 
-        {/* Add new */}
-        <div className="px-6 py-3 border-t border-gray-100">
+        <div className="border-t border-slate-200 px-6 py-3">
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -158,32 +149,18 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
                 if (e.key === 'Enter') handleAddItem();
               }}
               placeholder="添加默认检查项..."
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              aria-label="新检查项名称"
+              className={`${FIELD_CONTROL} flex-1`}
             />
-            <button
-              onClick={handleAddItem}
-              disabled={!newLabel.trim()}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
+            <button type="button" onClick={handleAddItem} disabled={!newLabel.trim()} className={BUTTON_SECONDARY}>
               添加
             </button>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 pt-3 border-t border-gray-100 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-          >
-            保存模板
-          </button>
+        <div className={DIALOG_FOOTER}>
+          <button type="button" onClick={onClose} className={BUTTON_SECONDARY}>取消</button>
+          <button type="button" onClick={handleSave} className={BUTTON_PRIMARY}>保存模板</button>
         </div>
       </div>
       {dialog}
@@ -215,16 +192,10 @@ const TemplateItemRow: React.FC<TemplateItemRowProps> = ({
     setEditing(false);
   };
 
-  return (
-    <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 group hover:bg-gray-100 transition-colors">
-      <span className="text-gray-500 text-xs w-6 text-right flex-shrink-0">
-        {item.required ? (
-          <span className="text-red-400" title="必填">*</span>
-        ) : (
-          <span className="text-gray-300" title="选填">-</span>
-        )}
-      </span>
+  const iconButton = 'inline-flex h-8 w-8 items-center justify-center text-slate-400 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600';
 
+  return (
+    <div className="flex min-h-11 items-center gap-2 border-b border-slate-100 px-3 py-1.5 last:border-b-0 hover:bg-slate-50">
       {editing ? (
         <input
           type="text"
@@ -235,42 +206,50 @@ const TemplateItemRow: React.FC<TemplateItemRowProps> = ({
             if (e.key === 'Enter') handleFinishEdit();
             if (e.key === 'Escape') setEditing(false);
           }}
-          className="flex-1 text-sm border border-blue-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          aria-label="检查项名称"
+          className="min-h-8 flex-1 rounded-[2px] border border-blue-500 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
           autoFocus
         />
       ) : (
-        <span className="flex-1 text-sm text-gray-700">{item.label}</span>
+        <span className="min-w-0 flex-1 break-words text-sm text-slate-800">{item.label}</span>
       )}
 
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex shrink-0 items-center gap-1">
         <button
+          type="button"
           onClick={() => onToggleRequired(item.id)}
-          className={`px-2 py-0.5 text-xs rounded ${
+          aria-pressed={item.required}
+          title="切换必填/选填"
+          className={`min-h-7 min-w-12 rounded-[2px] border px-2 text-xs transition-colors ${
             item.required
-              ? 'bg-red-50 text-red-600 hover:bg-red-100'
-              : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+              ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+              : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
           }`}
         >
           {item.required ? '必填' : '选填'}
         </button>
         <button
+          type="button"
           onClick={() => {
             setEditValue(item.label);
             setEditing(true);
           }}
-          className="p-1 text-gray-400 hover:text-blue-600"
+          className={`${iconButton} hover:text-blue-600`}
           title="重命名"
+          aria-label={`重命名 ${item.label}`}
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         </button>
         <button
+          type="button"
           onClick={() => onRemove(item.id)}
-          className="p-1 text-gray-400 hover:text-red-600"
+          className={`${iconButton} hover:text-red-600`}
           title="删除"
+          aria-label={`删除 ${item.label}`}
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
         </button>

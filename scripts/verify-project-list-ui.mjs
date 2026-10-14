@@ -2,16 +2,18 @@ import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, existsSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, existsSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import JSZip from 'jszip';
 const require = createRequire(import.meta.url);
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const presetMode = process.argv.includes('--presets');
-const output = path.resolve(`.trellis/.runtime/${presetMode ? 'preset-qa' : 'project-list-qa'}`);
+const imageMode = process.argv.includes('--images');
+const output = path.resolve(`.trellis/.runtime/${imageMode ? 'image-state-qa' : presetMode ? 'preset-qa' : 'project-list-qa'}`);
 require('node:fs').mkdirSync(output, { recursive: true });
-const bundle = (await build({ entryPoints: [presetMode ? 'scripts/preset-browser-cases.mjs' : 'scripts/project-list-browser-cases.mjs'], bundle: true, loader: { '.png': 'dataurl' }, write: false, format: 'iife', globalName: 'cases', platform: 'browser' })).outputFiles[0].text + '\nwindow.cases = cases;';
+const bundle = (await build({ entryPoints: [imageMode ? 'scripts/image-state-browser-cases.mjs' : presetMode ? 'scripts/preset-browser-cases.mjs' : 'scripts/project-list-browser-cases.mjs'], bundle: true, loader: { '.png': 'dataurl' }, write: false, format: 'iife', globalName: 'cases', platform: 'browser' })).outputFiles[0].text + '\nwindow.cases = cases;';
 let webLanEnabled = false;
 let webLanSnapshot = null;
 let webLanRunning = false;
@@ -93,13 +95,75 @@ try {
       }
       await client.evaluate(bundle);
       await client.evaluate('window.cases.until(() => document.querySelector("#project-list-title"), "初始页面")');
+      if (imageMode) {
+        await client.evaluate('window.cases.seed()');
+        await client.send('Page.addScriptToEvaluateOnNewDocument', { source: bundle + '\nwindow.cases.instrument();' });
+        await client.send('Page.reload', { ignoreCache: true });
+        await delay(400);
+        for (const name of ['desktop', 'mobile']) {
+          pass(await client.evaluate(`window.cases.${name}()`));
+          const image = await client.send('Page.captureScreenshot', { format: 'png' });
+          writeFileSync(path.join(output, `${platform}-${name}.png`), Buffer.from(image.data, 'base64'));
+        }
+        continue;
+      }
       if (presetMode) {
-        for (const name of ['storage', 'exports', 'ui', 'failures']) pass(await client.evaluate(`window.cases.${name}()`));
+        for (const name of ['onboardingStorage', 'storage', 'exports', 'ui', 'failures']) pass(await client.evaluate(`window.cases.${name}()`));
         for (const width of [375, 768, 1440]) {
           await client.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
           pass(`${width}px ${await client.evaluate('window.cases.layout()')}`);
           const image = await client.send('Page.captureScreenshot', { format: 'png' });
           writeFileSync(path.join(output, `${platform}-${width}.png`), Buffer.from(image.data, 'base64'));
+        }
+        await client.send('Page.addScriptToEvaluateOnNewDocument', { source: bundle + '\nwindow.onboardingReads = window.cases.instrumentOnboarding();' });
+        const reloadOnboarding = async () => {
+          await client.send('Page.reload', { ignoreCache: true });
+          await delay(400);
+          await client.evaluate('window.cases.until(() => document.querySelector("#project-list-title") && document.querySelector("[aria-busy=\\"false\\"]"), "旧库列表加载")');
+          assert.deepEqual(await client.evaluate('window.onboardingReads'), { documents: 0, images: 0 });
+        };
+        await client.evaluate('window.cases.seedOnboarding()');
+        await reloadOnboarding();
+        pass('旧库首屏无完整项目和图片读取');
+        pass(await client.evaluate('window.cases.onboardingLifecycle()'));
+        await reloadOnboarding();
+        await client.evaluate('window.cases.openOnboarding()');
+        for (const width of [375, 768, 1440]) {
+          await client.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
+          pass(`${width}px ${await client.evaluate('window.cases.onboardingLayout()')}`);
+          const image = await client.send('Page.captureScreenshot', { format: 'png' });
+          writeFileSync(path.join(output, `${platform}-onboarding-${width}.png`), Buffer.from(image.data, 'base64'));
+        }
+        await client.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+        const key = async (key, code, virtual, modifiers = 0) => {
+          await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: virtual, modifiers, ...(key === 'Enter' ? { text: '\r' } : {}) });
+          await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtual, modifiers });
+        };
+        assert.equal(await client.evaluate('document.activeElement.textContent'), '继续使用通用模板');
+        await key('Tab', 'Tab', 9, 8);
+        assert.equal(await client.evaluate('document.activeElement.textContent'), '沿用旧项目模板作为默认');
+        await key('Tab', 'Tab', 9);
+        assert.equal(await client.evaluate('document.activeElement.textContent'), '继续使用通用模板');
+        await key('Escape', 'Escape', 27);
+        assert.equal(await client.evaluate('document.activeElement.textContent.trim()'), '新建项目');
+        await client.evaluate('window.cases.openOnboarding()');
+        pass(await client.evaluate('window.cases.onboardingUi()'));
+        await reloadOnboarding();
+        await client.evaluate('document.querySelector("#project-list-title"); [...document.querySelectorAll("button")].find(el => el.textContent.trim()==="新建项目").click(); window.cases.onboardingForm("legacy")');
+        pass('沿用后真实重载不再提示');
+        await client.evaluate('window.cases.seedOnboarding()');
+        await reloadOnboarding();
+        await client.evaluate('window.cases.openOnboarding()');
+        await key('Enter', 'Enter', 13);
+        await client.evaluate('window.cases.onboardingGeneric()');
+        await reloadOnboarding();
+        await client.evaluate('[...document.querySelectorAll("button")].find(el => el.textContent.trim()==="新建项目").click(); window.cases.onboardingForm()');
+        pass('键盘焦点闭环、取消不记录、通用选择创建及真实重载持久化');
+        for (const kind of ['new', 'mixed', 'different', 'default']) {
+          await client.evaluate(`window.cases.seedOnboarding('${kind}')`);
+          await reloadOnboarding();
+          await client.evaluate('[...document.querySelectorAll("button")].find(el => el.textContent.trim()==="新建项目").click(); window.cases.onboardingForm()');
+          pass(`${kind} 真实新建入口不误提示`);
         }
         continue;
       }
@@ -112,7 +176,7 @@ try {
       assert.deepEqual(await client.evaluate('window.listReads'), { documents: 0, images: 0 });
       pass('生产首屏只读摘要，无项目文档/图片读取');
       if (platform === 'web') { assert.equal(await client.evaluate('!!window.cases.button("手机采集")'), false); pass('无桥网页不显示手机采集'); }
-      for (const name of ['core', 'mutations', 'exportAndImport', 'failedLoad', 'savedButRefreshFailed']) pass(await client.evaluate(`window.cases.${name}()`));
+      for (const name of ['core', 'mutations', 'exportAndImport', 'batchExport', 'batchBoundaries', 'failedLoad', 'savedButRefreshFailed']) pass(await client.evaluate(`window.cases.${name}()`));
       for (const width of [375, 768, 1440]) {
         await client.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
         pass(`${width}px ${await client.evaluate('window.cases.layout()')}`);
@@ -122,6 +186,7 @@ try {
         const groupScreenshot = await client.send('Page.captureScreenshot', { format: 'png' });
         writeFileSync(path.join(output, `${platform}-groups-${width}.png`), Buffer.from(groupScreenshot.data, 'base64'));
       }
+      await client.send('Emulation.setFocusEmulationEnabled', { enabled: true });
       await client.evaluate('window.cases.tab("independent")');
       await client.evaluate('document.querySelector("[data-system-id] summary").focus()');
       const key = async (key, code, virtual) => { await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: virtual, ...(key === 'Enter' ? { text: '\r' } : {}) }); await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtual }); };
@@ -132,6 +197,29 @@ try {
       assert.equal(await client.evaluate('document.activeElement.tagName'), 'SUMMARY');
       assert.equal(await client.evaluate('!!document.querySelector("details[open]")'), false);
       pass('真实 Enter/Tab/Escape 按键与焦点恢复');
+      const downloadPath = path.join(profile, 'downloads'); require('node:fs').mkdirSync(downloadPath);
+      await client.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath });
+      await client.evaluate('window.cases.prepareBatchKeyboard()');
+      await key(' ', 'Space', 32); await delay(80);
+      assert.equal(await client.evaluate('document.querySelector("input[type=checkbox]").checked'), true);
+      await client.evaluate('window.cases.button("导出选中 1").focus()');
+      assert.equal(await client.evaluate('document.activeElement === window.cases.button("导出选中 1") && !document.activeElement.matches(":disabled")'), true);
+      await key('Enter', 'Enter', 13);
+      let downloadedFile;
+      for (let n = 0; n < 100; n++) {
+        downloadedFile = readdirSync(downloadPath).find(name => name.endsWith('.zip'));
+        if (downloadedFile) break;
+        await delay(50);
+      }
+      if (!downloadedFile) console.error(await client.evaluate('({focused: document.activeElement?.outerHTML, status: document.querySelector("[data-batch-status]")?.textContent, alerts: [...document.querySelectorAll("[role=alert], [role=status]")].map(el => el.textContent)})'));
+      assert.ok(downloadedFile, '键盘批量导出实际下载文件');
+      const downloadedBytes = readFileSync(path.join(downloadPath, downloadedFile));
+      const downloadedZip = await JSZip.loadAsync(downloadedBytes);
+      const children = Object.values(downloadedZip.files).filter(file => !file.dir);
+      assert.equal(children.length, 1);
+      assert.ok((await JSZip.loadAsync(await children[0].async('nodebuffer'))).file('manifest.json'));
+      writeFileSync(path.join(output, `${platform}-batch-download.zip`), downloadedBytes);
+      pass('真实 Space 全选/Enter 批量导出，磁盘总 ZIP 及子包可打开');
       await client.evaluate('window.cases.tab("groups")');
       await client.evaluate('document.getElementById("group-toggle-multi").focus()');
       assert.equal(await client.evaluate('document.activeElement.getAttribute("aria-expanded")'), 'true');

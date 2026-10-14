@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { ProjectDocument, ProjectGroup, ProjectGroupSummary, ProjectMeta, ProjectSummary } from '../types';
+import type { ProjectDocument, ProjectGroup, ProjectGroupSummary, ProjectMeta, ProjectPreset, ProjectSummary } from '../types';
 import {
   createProjectGroupWithSystems,
   createSystemForGroup,
@@ -16,8 +16,10 @@ import {
   hydrateProjectImages,
   updateProjectGroupAndSystems,
   getDefaultPreset,
+  getLegacyPresetCandidate,
+  completeLegacyPresetOnboarding,
 } from '../utils/db';
-import { exportDataPackage, importDataPackage, importEncryptedDataPackage } from '../utils/exportImport';
+import { exportBatchDataPackage, exportDataPackage, importDataPackage, importEncryptedDataPackage } from '../utils/exportImport';
 import { isEvidencePackageFile } from '../utils/evidencePackage';
 import { compressProjectImages } from '../utils/imageCompression';
 import { claimSummaryRepairNotice } from '../utils/summaryRepair';
@@ -74,8 +76,18 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
   const [presetLoading, setPresetLoading] = useState(true);
   const [presetError, setPresetError] = useState('');
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
+  const [legacyCandidate, setLegacyCandidate] = useState<ProjectPreset | null>(null);
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [onboardingError, setOnboardingError] = useState('');
+  const onboardingBusyRef = useRef(false);
+  const presetGenerationRef = useRef(0);
+  useEffect(() => () => { presetGenerationRef.current += 1; }, []);
   const [saving, setSaving] = useState(false);
   const [storageSettingsOpen, setStorageSettingsOpen] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<string | null>(null);
+  const batchControllerRef = useRef<AbortController | null>(null);
+  const batchExporting = batchProgress !== null;
+  useEffect(() => () => batchControllerRef.current?.abort(), []);
   const [compressingSystemId, setCompressingSystemId] = useState<string | null>(null);
   const [archiveDialog, setArchiveDialog] = useState<{ initialSelectedIds?: string[] } | null>(null);
   const [restoringSystem, setRestoringSystem] = useState<ProjectSummary | null>(null);
@@ -131,13 +143,42 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
   };
 
   const refreshPreset = useCallback(async () => {
+    const generation = ++presetGenerationRef.current;
     setPresetLoading(true);
     setPresetError('');
-    try { setPreset(await getDefaultPreset()); }
-    catch (error) { setPresetError(`读取模板预设失败：${error instanceof Error ? error.message : '未知错误'}`); }
-    finally { setPresetLoading(false); }
-  }, []);
-  useEffect(() => { void refreshPreset(); }, [refreshPreset]);
+    setLegacyCandidate(null);
+    setOnboardingError('');
+    try {
+      const nextPreset = await getDefaultPreset();
+      let candidate: ProjectPreset | null = null;
+      if (dialogState?.mode === 'create-group') candidate = await getLegacyPresetCandidate();
+      if (generation !== presetGenerationRef.current) return;
+      setPreset(nextPreset);
+      setLegacyCandidate(candidate);
+    } catch (error) {
+      if (generation === presetGenerationRef.current) setPresetError(`读取模板预设失败：${error instanceof Error ? error.message : '未知错误'}`);
+    } finally { if (generation === presetGenerationRef.current) setPresetLoading(false); }
+  }, [dialogState?.mode]);
+  useEffect(() => { void refreshPreset(); return () => { presetGenerationRef.current += 1; }; }, [refreshPreset]);
+
+  const chooseLegacyPreset = async (adopt: boolean) => {
+    if (!legacyCandidate || onboardingBusyRef.current) return;
+    onboardingBusyRef.current = true;
+    setOnboardingSaving(true);
+    setOnboardingError('');
+    const generation = presetGenerationRef.current;
+    try {
+      const next = await completeLegacyPresetOnboarding(adopt ? legacyCandidate : null);
+      if (generation !== presetGenerationRef.current) return;
+      setPreset(next);
+      setLegacyCandidate(null);
+    } catch (error) {
+      if (generation === presetGenerationRef.current) setOnboardingError(`保存模板选择失败：${error instanceof Error ? error.message : '未知错误'}`);
+    } finally {
+      onboardingBusyRef.current = false;
+      if (generation === presetGenerationRef.current) setOnboardingSaving(false);
+    }
+  };
 
   useEffect(() => { void refreshProjects(); }, []);
 
@@ -330,6 +371,25 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
     }
   };
 
+  const handleExportSelected = async () => {
+    if (batchControllerRef.current || compressingSystemId || restoringSystem || selectedSystems.length === 0) return;
+    const targets = selectedSystems.map(system => ({ id: system.id, name: getSystemDisplayName(system), archived: Boolean(system.archive) }));
+    const controller = new AbortController();
+    batchControllerRef.current = controller;
+    setBatchProgress(`准备导出 ${targets.length} 个系统…`);
+    try {
+      await exportBatchDataPackage(targets, message => {
+        if (!controller.signal.aborted) setBatchProgress(message);
+      }, controller.signal);
+      showToast(`已生成 ${targets.length} 个系统的数据包并发起下载，解压后可逐个导入。`, 'success');
+    } catch (error) {
+      if (!controller.signal.aborted) showToast(`批量导出失败：${error instanceof Error ? error.message : '未知错误'}`, 'error');
+    } finally {
+      batchControllerRef.current = null;
+      if (!controller.signal.aborted) setBatchProgress(null);
+    }
+  };
+
   const handleExportSystem = async (system: ProjectSummary) => {
     try {
       const document = await loadProject(system.id);
@@ -413,7 +473,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
   };
 
   const handleSaveDialog = async (values: { projectCode: string; projectName: string; unitName: string; reportDate: string; systemName: string }): Promise<boolean> => {
-    if (!dialogState || saving || (needsPreset && (presetLoading || presetError))) return false;
+    if (!dialogState || saving || (needsPreset && (presetLoading || presetError || legacyCandidate))) return false;
     setSaving(true);
     try {
       let createdSystem: { groupId: string | null; systemId: string } | null = null;
@@ -523,9 +583,11 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <ProjectListHeader search={search} searchLabel={isGroupList ? '搜索项目或组内系统' : '搜索当前列表的系统'} showSelection={!isGroupList} selectedCount={selectedSystems.length} onSearchChange={changeSearch} onDeleteSelected={handleDeleteSelectedProjects} onCreateProject={() => setDialogState({ mode: 'create-group', group: null, system: null })} onOpenStorageSettings={() => setStorageSettingsOpen(true)} onOpenPresetSettings={() => setPresetDialogOpen(true)} />
+      <fieldset disabled={batchExporting} className="min-w-0">
+      <ProjectListHeader search={search} searchLabel={isGroupList ? '搜索项目或组内系统' : '搜索当前列表的系统'} showSelection={!isGroupList} selectedCount={selectedSystems.length} exportDisabled={compressingSystemId !== null || restoringSystem !== null} onExportSelected={handleExportSelected} onSearchChange={changeSearch} onDeleteSelected={handleDeleteSelectedProjects} onCreateProject={() => { setPresetLoading(true); setDialogState({ mode: 'create-group', group: null, system: null }); }} onOpenStorageSettings={() => setStorageSettingsOpen(true)} onOpenPresetSettings={() => setPresetDialogOpen(true)} />
       <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-8">
         <h2 className="mb-4 text-2xl font-bold text-slate-950">项目管理中心</h2>
+        {batchProgress !== null && <p data-batch-status role="status" aria-live="polite" className="mb-4 break-words border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{batchProgress}</p>}
         {reminder.result && reminder.result.level !== 'none' && <StorageReminderBanner result={reminder.result} onSnooze={reminder.snooze}
           onArchive={() => setArchiveDialog({ initialSelectedIds: reminder.result?.staleCandidates.map((candidate) => candidate.projectId) })} />}
         <nav aria-label="项目分类" className="mb-6 flex flex-wrap gap-2 border-b border-slate-300">
@@ -581,9 +643,13 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
                           <label className="flex min-h-11 items-center justify-center"><input aria-label="全选当前可见系统" type="checkbox" checked={allSelected} onChange={() => toggleAllFilteredProjects(systems, summary.id)} className="h-4 w-4" /></label>
                           <span>系统名称{systems.length !== summary.systems.length && <span className="ml-2">（匹配 {systems.length} 个）</span>}</span>
                           <span data-column="updated" className="hidden lg:block">最后更新</span><span data-column="assets" className="hidden whitespace-nowrap text-center lg:block">资产数</span>
-                          <div className={`${selectionGroupId === summary.id && selectedSystems.length > 0 ? 'col-span-2 flex md:col-span-1' : 'hidden md:flex'} items-center justify-end gap-2`}>
-                            {selectionGroupId === summary.id && selectedSystems.length > 0 ? <><span className="whitespace-nowrap">已选 {selectedSystems.length} 项</span><button type="button" onClick={handleDeleteSelectedProjects} className={`${actionButton} border-red-200 text-red-700 hover:bg-red-50`}>删除选中</button></> : <span>操作</span>}
-                          </div>
+                          <span className="hidden text-right md:block">操作</span>
+                          {selectionGroupId === summary.id && selectedSystems.length > 0 && <div className="col-span-full flex flex-wrap items-center justify-end gap-2">
+                            <span className="whitespace-nowrap">已选 {selectedSystems.length} 项</span>
+                            <button type="button" disabled={compressingSystemId !== null || restoringSystem !== null} onClick={() => void handleExportSelected()} className={`${actionButton} border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100`}>导出选中</button>
+                            <button type="button" onClick={handleDeleteSelectedProjects} className={`${actionButton} border-red-200 text-red-700 hover:bg-red-50`}>删除选中</button>
+                            <span className="basis-full text-right font-normal text-slate-600">解压后可逐个导入</span>
+                          </div>}
                         </div>
                         {systems.map(system => renderSystemRow(system, unitName))}
                       </>}
@@ -594,8 +660,9 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
           </div>
         </section>
       </main>
+      </fieldset>
       <PresetDialog open={presetDialogOpen} preset={preset} loading={presetLoading} error={presetError} onRetry={refreshPreset} onClose={() => setPresetDialogOpen(false)} onSaved={(next) => { setPreset(next); setPresetError(''); setPresetLoading(false); setPresetDialogOpen(false); showToast(`已设为默认预设：${next.name}`, 'success'); }} onError={(message) => showToast(message, 'error')} />
-      <ProjectGroupDialog open={!!dialogState} mode={dialogState?.mode ?? 'create-group'} group={dialogState?.group ?? null} system={dialogState?.system?.meta ?? null} onClose={() => { if (!saving) setDialogState(null); }} onSave={handleSaveDialog} unitFieldLabel={dialogProfile.unitFieldLabel} unitFieldRequired={dialogProfile.unitFieldRequired || Boolean(groupMembersRequired)} loading={needsPreset && presetLoading} loadError={needsPreset ? presetError : ''} onRetry={refreshPreset} />
+      <ProjectGroupDialog open={!!dialogState} mode={dialogState?.mode ?? 'create-group'} group={dialogState?.group ?? null} system={dialogState?.system?.meta ?? null} onClose={() => { if (!saving && !onboardingBusyRef.current) setDialogState(null); }} onSave={handleSaveDialog} legacyOnboarding={dialogState?.mode === 'create-group' && !!legacyCandidate} onboardingSaving={onboardingSaving} onboardingError={onboardingError} onChooseLegacyPreset={chooseLegacyPreset} unitFieldLabel={dialogProfile.unitFieldLabel} unitFieldRequired={dialogProfile.unitFieldRequired || Boolean(groupMembersRequired)} loading={needsPreset && presetLoading} loadError={needsPreset ? presetError : ''} onRetry={refreshPreset} />
       <ImportDialog isOpen={!!importTargetId} targetProjectName={importTarget ? getImportTargetName(importTarget) : '未知系统'} onClose={() => setImportTargetId(null)} onImportOverwrite={(file, password) => importIntoSystem(file, password, 'overwrite')} onImportMerge={(file, password) => importIntoSystem(file, password, 'merge')} />
       {storageSettingsOpen && <StorageSettingsDialog onClose={() => setStorageSettingsOpen(false)} onOpenArchive={() => { setStorageSettingsOpen(false); setArchiveDialog({}); }} onReminderSettingsChanged={reminder.recheck} />}
       {archiveDialog && <ArchiveDialog groups={groups} initialSelectedIds={archiveDialog.initialSelectedIds} onClose={() => setArchiveDialog(null)} onArchived={() => { void refreshProjects(); reminder.recheck(); }} />}

@@ -6,6 +6,7 @@ import { computeStorageStats, type SystemStorageStat } from '../../utils/storage
 import { formatBytes } from '../../utils/storageEstimate';
 import { formatTime, getGroupDisplayName, getSystemDisplayName } from '../project-list/projectListViews';
 import { useConfirmDialog } from '../ConfirmDialog';
+import { DIALOG_CLOSE } from '../dialogStyles';
 
 interface ArchiveDialogProps {
   groups: ProjectGroupSummary[];
@@ -150,7 +151,7 @@ const ArchiveDialog: React.FC<ArchiveDialogProps> = ({ groups, initialSelectedId
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 id="archive-dialog-title" className="text-base font-semibold text-slate-950">占用明细与归档</h2>
-          <button onClick={onClose} disabled={running} className="text-slate-400 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40" aria-label="关闭">
+          <button type="button" onClick={onClose} disabled={running} className={DIALOG_CLOSE} aria-label="关闭">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>

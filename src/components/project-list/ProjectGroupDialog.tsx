@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { ProjectGroup, ProjectMeta } from '../../types';
 import { createDefaultMeta } from '../../data/defaults';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_FOOTER, DIALOG_TITLE, FIELD_CONTROL } from '../dialogStyles';
 
 export type ProjectGroupDialogMode = 'create-group' | 'add-system' | 'edit-group' | 'edit-system';
 
@@ -17,6 +18,10 @@ interface ProjectGroupDialogProps {
     reportDate: string;
     systemName: string;
   }) => Promise<boolean>;
+  legacyOnboarding?: boolean;
+  onboardingSaving?: boolean;
+  onboardingError?: string;
+  onChooseLegacyPreset?: (adopt: boolean) => Promise<void>;
   unitFieldLabel: string;
   unitFieldRequired: boolean;
   loading?: boolean;
@@ -32,7 +37,7 @@ interface FormValues {
   systemName: string;
 }
 
-const inputClass = 'w-full border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200';
+const inputClass = FIELD_CONTROL;
 
 function createForm(group: ProjectGroup | null, system: ProjectMeta | null): FormValues {
   return {
@@ -44,10 +49,34 @@ function createForm(group: ProjectGroup | null, system: ProjectMeta | null): For
   };
 }
 
-const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, group, system, onClose, onSave, unitFieldLabel, unitFieldRequired, loading = false, loadError = '', onRetry }) => {
+const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, group, system, onClose, onSave, unitFieldLabel, unitFieldRequired, loading = false, loadError = '', onRetry, legacyOnboarding = false, onboardingSaving = false, onboardingError = '', onChooseLegacyPreset }) => {
   const [form, setForm] = useState<FormValues>(() => createForm(group, system));
   const [errors, setErrors] = useState<{ unitName?: string; systemName?: string }>({});
   const [saving, setSaving] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const busy = saving || onboardingSaving;
+  const closeRef = useRef(onClose);
+  const busyRef = useRef(busy);
+  closeRef.current = onClose;
+  busyRef.current = busy;
+
+  useEffect(() => {
+    if (!open || !legacyOnboarding) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    containerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); if (!busyRef.current) closeRef.current(); }
+      if (event.key !== 'Tab') return;
+      const controls = [...(containerRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+      if (!controls.length) { event.preventDefault(); return; }
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', keydown);
+    return () => { document.removeEventListener('keydown', keydown); previous?.focus(); };
+  }, [open, legacyOnboarding]);
 
   useEffect(() => {
     if (open) {
@@ -63,7 +92,7 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
   const isEditingGroup = mode === 'edit-group';
   const isGroupedSystemOnly = mode === 'edit-system' && !!group;
   const isSystemOnly = isAddingSystem || isGroupedSystemOnly;
-  const title = mode === 'create-group' ? '新建项目' : isAddingSystem ? '添加系统' : isEditingGroup ? '编辑项目组信息' : '编辑系统信息';
+  const title = legacyOnboarding ? '沿用旧项目模板' : mode === 'create-group' ? '新建项目' : isAddingSystem ? '添加系统' : isEditingGroup ? '编辑项目组信息' : '编辑系统信息';
 
   const handleSave = async () => {
     if (saving || loading || loadError) return;
@@ -92,11 +121,22 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="group-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!saving) onClose(); }}>
-      <div className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="border-b border-slate-200 px-6 py-5">
-          <h2 id="group-dialog-title" className="text-lg font-semibold text-slate-900">{title}</h2>
+    <div role="dialog" aria-modal="true" aria-labelledby="group-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!busy) onClose(); }}>
+      <div ref={containerRef} className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="border-b border-slate-200 px-6 py-4">
+          <h2 id="group-dialog-title" className={DIALOG_TITLE}>{title}</h2>
         </div>
+        {legacyOnboarding ? <>
+          <div className="space-y-4 px-6 py-5">
+            <p className="text-sm text-slate-700">已有项目使用旧等保模板。请选择以后新建项目使用的默认模板。</p>
+            {onboardingError && <p role="alert" className="text-sm text-red-700">{onboardingError}</p>}
+            {onboardingSaving && <p role="status" className="text-sm text-slate-600">正在保存模板选择…</p>}
+          </div>
+          <div className={`${DIALOG_FOOTER} flex-wrap`}>
+            <button type="button" onClick={() => void onChooseLegacyPreset?.(false)} disabled={busy} className={`${BUTTON_SECONDARY} !min-h-11`}>继续使用通用模板</button>
+            <button type="button" onClick={() => void onChooseLegacyPreset?.(true)} disabled={busy} className={`${BUTTON_PRIMARY} !min-h-11`}>沿用旧项目模板作为默认</button>
+          </div>
+        </> : <>
         <div className="space-y-4 px-6 py-5">
           {loading && <p role="status">正在读取预设…</p>}
           {loadError && <div role="alert" className="text-sm text-red-700">{loadError}<button type="button" onClick={onRetry} className="ml-3 min-h-11 underline">重试</button></div>}
@@ -127,10 +167,11 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
             {errors.systemName && <p className="mt-1 text-xs text-red-600">{errors.systemName}</p>}
           </div>}
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
-          <button onClick={onClose} disabled={saving} className="border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">取消</button>
-          <button onClick={() => void handleSave()} disabled={saving || loading || !!loadError} className="border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{saving ? '保存中...' : '保存'}</button>
+        <div className={DIALOG_FOOTER}>
+          <button onClick={onClose} disabled={saving} className={BUTTON_SECONDARY}>取消</button>
+          <button onClick={() => void handleSave()} disabled={saving || loading || !!loadError} className={BUTTON_PRIMARY}>{saving ? '保存中...' : '保存'}</button>
         </div>
+        </>}
       </div>
     </div>
   );

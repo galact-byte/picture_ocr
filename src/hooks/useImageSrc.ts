@@ -1,47 +1,61 @@
-/**
- * 图片显示 hook：屏蔽「内联字节」与「独立 store 引用」两种形态的差异。
- * 组件只管拿 src，未就绪时返回 undefined（渲染占位，不显示破图）。
- */
 import { useEffect, useState } from 'react';
 import type { ImageData } from '../types';
 import { loadImageSrc, peekImageSrc } from '../utils/imageCache';
 
-export function useImageSrc(projectId: string, image: ImageData | null | undefined): string | undefined {
+export type ImageSrcStatus = 'loading' | 'loaded' | 'missing' | 'error';
+
+export interface ImageSrcState {
+  status: ImageSrcStatus;
+  src?: string;
+  onError: () => void;
+}
+
+type ImageResult = Pick<ImageSrcState, 'status' | 'src'>;
+interface TrackedImageResult {
+  projectId: string;
+  imageId: string;
+  inlineData: string | undefined;
+  result: ImageResult;
+}
+
+export function useImageSrc(projectId: string, image: ImageData | null | undefined): ImageSrcState {
   const imageId = image?.id ?? '';
   const inlineData = image?.data;
-  const [src, setSrc] = useState<string | undefined>(
-    () => inlineData ?? (imageId ? peekImageSrc(projectId, imageId) : undefined)
-  );
+  const immediateResult = (): ImageResult => {
+    if (!image) return { status: 'missing' };
+    const src = inlineData || peekImageSrc(projectId, imageId);
+    return src ? { status: 'loaded', src } : { status: 'loading' };
+  };
+  const [state, setState] = useState<TrackedImageResult>(() => ({
+    projectId, imageId, inlineData, result: immediateResult(),
+  }));
 
   useEffect(() => {
-    if (!image) {
-      setSrc(undefined);
-      return;
-    }
-    if (typeof inlineData === 'string' && inlineData.length > 0) {
-      setSrc(inlineData);
-      return;
-    }
-    const cached = peekImageSrc(projectId, image.id);
-    if (cached !== undefined) {
-      setSrc(cached);
+    const update = (result: ImageResult) => setState({ projectId, imageId, inlineData, result });
+    const immediate = immediateResult();
+    if (immediate.status !== 'loading' || !image) {
+      update(immediate);
       return;
     }
     let alive = true;
-    setSrc(undefined);
+    update({ status: 'loading' });
     void loadImageSrc(projectId, image)
       .then((data) => {
-        if (alive) setSrc(data ?? undefined);
+        if (alive) update(data ? { status: 'loaded', src: data } : { status: 'missing' });
       })
       .catch(() => {
-        // 单张图读失败不该炸整个界面：保持占位，存储自检会把缺失的图对账出来。
-        if (alive) setSrc(undefined);
+        if (alive) update({ status: 'error' });
       });
-    return () => {
-      alive = false;
-    };
-    // image 对象每次渲染可能是新引用，因此依赖具体的 id 与内联字节而不是对象本身。
+    return () => { alive = false; };
+    // 图片对象可能重建；依赖身份与字节，避免无关渲染重复读库。
   }, [projectId, imageId, inlineData]);
 
-  return src;
+  const matches = state.projectId === projectId && state.imageId === imageId && state.inlineData === inlineData;
+  return {
+    ...(matches ? state.result : immediateResult()),
+    onError: () => setState(previous => {
+      if (previous.projectId !== projectId || previous.imageId !== imageId || previous.inlineData !== inlineData) return previous;
+      return { ...previous, result: { status: 'error' } };
+    }),
+  };
 }

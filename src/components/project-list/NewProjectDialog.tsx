@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { ProjectMeta } from '../../types';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_DESCRIPTION, DIALOG_FOOTER, DIALOG_TITLE, FIELD_CONTROL } from '../dialogStyles';
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -12,7 +13,7 @@ interface NewProjectDialogProps {
   onSave: () => Promise<boolean>;
 }
 
-const inputClass = 'w-full border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200';
+const inputClass = FIELD_CONTROL;
 
 const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, title, description, confirmLabel, form, onFormChange, onClose, onSave }) => {
   const [errors, setErrors] = useState<{ unitName?: string; systemName?: string }>({});
@@ -46,9 +47,9 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, title, descri
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!saving) onClose(); }}>
       <div className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="border-b border-slate-200 px-6 py-5">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+        <div className="border-b border-slate-200 px-6 py-4">
+          <h2 className={DIALOG_TITLE}>{title}</h2>
+          <p className={DIALOG_DESCRIPTION}>{description}</p>
         </div>
         <div className="space-y-4 px-6 py-5">
           <div>
@@ -74,9 +75,9 @@ const NewProjectDialog: React.FC<NewProjectDialogProps> = ({ open, title, descri
             <input type="date" className={inputClass} value={form.reportDate} onChange={(event) => onFormChange({ ...form, reportDate: event.target.value })} />
           </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
-          <button onClick={onClose} disabled={saving} className="border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">取消</button>
-          <button onClick={() => void handleSave()} disabled={saving} className="border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{saving ? '保存中...' : confirmLabel}</button>
+        <div className={DIALOG_FOOTER}>
+          <button onClick={onClose} disabled={saving} className={BUTTON_SECONDARY}>取消</button>
+          <button onClick={() => void handleSave()} disabled={saving} className={BUTTON_PRIMARY}>{saving ? '保存中...' : confirmLabel}</button>
         </div>
       </div>
     </div>

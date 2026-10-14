@@ -1,10 +1,13 @@
 import React from 'react';
+import { LIST_ACTION_CLASS } from './projectListUi';
 
 interface ProjectListHeaderProps {
   search: string;
   searchLabel: string;
   showSelection: boolean;
   selectedCount: number;
+  exportDisabled: boolean;
+  onExportSelected: () => void;
   onSearchChange: (value: string) => void;
   onDeleteSelected: () => void;
   onCreateProject: () => void;
@@ -17,6 +20,8 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
   searchLabel,
   showSelection,
   selectedCount,
+  exportDisabled,
+  onExportSelected,
   onSearchChange,
   onDeleteSelected,
   onCreateProject,
@@ -38,7 +43,7 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 xl:flex-nowrap">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 xl:flex-wrap">
           <label className="flex h-11 min-w-0 basis-full items-center border border-slate-300 bg-slate-50 px-3 text-slate-500 focus-within:border-blue-400 focus-within:bg-white sm:basis-[16rem] sm:flex-1 xl:w-[320px] xl:flex-none">
             <svg className="mr-3 h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.2-5.2M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
@@ -52,6 +57,12 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
               className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
             />
           </label>
+          {showSelection && <button type="button"
+            onClick={onExportSelected}
+            disabled={selectedCount === 0 || exportDisabled}
+            className={`${LIST_ACTION_CLASS} border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100`}
+            title="批量 ZIP，解压后可逐个导入"
+          >导出选中{selectedCount > 0 ? ` ${selectedCount}` : ''}</button>}
           {showSelection && <button
             onClick={onDeleteSelected}
             disabled={selectedCount === 0}
@@ -91,6 +102,7 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
           </button>
         </div>
       </div>
+      {showSelection && selectedCount > 0 && <p className="mt-2 text-right text-xs text-slate-600">解压后可逐个导入</p>}
     </header>
   );
 };

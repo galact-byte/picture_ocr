@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { decryptEvidenceBlob, encryptEvidenceBlob } from './evidencePackage';
 import { blobToDataUrl, compressImageBlob, dataUrlToBlob } from './imageCompression';
-import { hydrateAssets } from './db';
+import { hydrateAssets, loadProject } from './db';
 import { LEGACY_PROFILE, normalizeProfile, parseProfile, sanitizeFileNamePart } from './preset';
 import type {
   ProjectMeta,
@@ -122,6 +122,64 @@ export async function exportDataPackage(
   const content = await createDataPackageBlob(meta, categories, await hydrateAssets(projectId, assets), profile);
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   downloadBlob(content, `${sanitizeFileNamePart(profile?.exportFilePrefix ?? '证据采集', '证据采集')}_${sanitizeFileNamePart(meta.unitName, '未命名')}_${dateStr}.zip`);
+}
+
+export interface BatchExportTarget {
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+/** 总包只在所有系统读取、补图和打包完成后下载；不写回源文档。 */
+export async function exportBatchDataPackage(
+  targets: readonly BatchExportTarget[],
+  onProgress: (message: string) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  signal?.throwIfAborted();
+  const systems = [...new Map(targets.map(target => [target.id, target])).values()];
+  if (systems.length === 0) throw new Error('请先勾选要导出的系统');
+  const archived = systems.find(system => system.archived);
+  if (archived) throw new Error(`系统“${archived.name}”已归档，请先恢复`);
+  const zip = new JSZip();
+  const fileNames = new Set<string>();
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  for (let index = 0; index < systems.length; index++) {
+    signal?.throwIfAborted();
+    const system = systems[index];
+    onProgress(`正在生成 ${index + 1}/${systems.length}：${system.name}`);
+    signal?.throwIfAborted();
+    try {
+      const document = await loadProject(system.id, { migrateLegacy: false });
+      if (!document) throw new Error('系统不存在或已被删除');
+      if (document.archive) throw new Error('该系统已归档，请先恢复');
+      signal?.throwIfAborted();
+      const assets = await hydrateAssets(document.id, document.assets);
+      for (const asset of assets) {
+        for (const item of asset.items) {
+          const missing = item.images.find(image => typeof image.data !== 'string' || image.data.length === 0);
+          if (missing) throw new Error(`缺少图片“${missing.fileName}”，请检查源数据后重试`);
+        }
+      }
+      const content = await createDataPackageBlob(document.meta, document.categories, assets, document.profile);
+      signal?.throwIfAborted();
+      const prefix = sanitizeFileNamePart(document.profile?.exportFilePrefix ?? '证据采集', '证据采集');
+      const projectName = sanitizeFileNamePart(document.meta.projectName, '未命名项目');
+      const systemName = sanitizeFileNamePart(document.meta.systemName || document.meta.projectName, '未命名系统');
+      const base = [prefix, projectName, systemName].map(part => part.slice(0, 60).replace(/[\uD800-\uDBFF]$/, '')).join('_') + `_${date}`;
+      let fileName = `${base}.zip`;
+      let suffix = 2;
+      while (fileNames.has(fileName.toLowerCase())) fileName = `${base}_${suffix++}.zip`;
+      fileNames.add(fileName.toLowerCase());
+      zip.file(fileName, content);
+    } catch (error) {
+      throw new Error(`系统“${system.name}”导出失败：${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  }
+  onProgress(`正在汇总 ${systems.length} 个系统的数据包…`);
+  const content = await zip.generateAsync({ type: 'blob' });
+  signal?.throwIfAborted();
+  downloadBlob(content, `批量数据包_${date}.zip`);
 }
 
 export async function exportEncryptedDataPackage(

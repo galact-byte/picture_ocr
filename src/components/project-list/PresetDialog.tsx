@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { ProjectPreset } from '../../types';
 import { parsePreset, serializePreset, DEFAULT_PRESET, sanitizeFileNamePart } from '../../utils/preset';
 import { saveDefaultPreset } from '../../utils/db';
+import { BUTTON_SECONDARY, DIALOG_BODY, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_PANEL, DIALOG_TITLE, FIELD_INPUT, FIELD_LABEL } from '../dialogStyles';
 
 interface PresetDialogProps {
   open: boolean;
@@ -15,7 +16,7 @@ interface PresetDialogProps {
   onError: (message: string) => void;
 }
 
-const buttonClass = 'min-h-11 border border-slate-300 bg-white px-4 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50';
+const buttonClass = BUTTON_SECONDARY;
 const PresetDialog: React.FC<PresetDialogProps> = ({ open, preset, projectMode = false, loading = false, error = '', onRetry, onClose, onSaved, onError }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -74,14 +75,14 @@ const PresetDialog: React.FC<PresetDialogProps> = ({ open, preset, projectMode =
   };
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="preset-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" onKeyDown={keyboard} onClick={() => { if (!saving) onClose(); }}>
-      <div ref={panelRef} className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-slate-200 bg-white shadow-lg" onClick={(event) => event.stopPropagation()}>
-        <div className="border-b border-slate-200 px-6 py-5"><h2 id="preset-dialog-title" className="text-lg font-semibold text-slate-900">{projectMode ? '另存为预设' : '模板预设'}</h2></div>
-        <div className="space-y-4 px-6 py-5">
+      <div ref={panelRef} className={`${DIALOG_PANEL} max-w-lg`} onClick={(event) => event.stopPropagation()}>
+        <div className={DIALOG_HEADER}><h2 id="preset-dialog-title" className={DIALOG_TITLE}>{projectMode ? '另存为预设' : '模板预设'}</h2></div>
+        <div className={`${DIALOG_BODY} space-y-4`}>
           {projectMode ? <>
-            <label className="block text-sm text-slate-700">预设名称<input autoFocus maxLength={500} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="mt-1 min-h-11 w-full border border-slate-300 px-3" /></label>
-            {(['reportTitle', 'exportFilePrefix', 'unitFieldLabel'] as const).map((key, index) => <label key={key} className="block text-sm text-slate-700">{['报告标题', '导出文件名前缀', '单位字段名称'][index]}<input maxLength={500} value={draft.profile[key]} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, [key]: e.target.value } })} className="mt-1 min-h-11 w-full border border-slate-300 px-3" /></label>)}
-            <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={draft.profile.unitFieldRequired} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, unitFieldRequired: e.target.checked } })} />单位字段必填</label>
-          </> : loading ? <p role="status">正在读取预设…</p> : error ? <div role="alert" className="text-sm text-red-700">{error}<button type="button" onClick={onRetry} className="ml-3 min-h-11 underline">重试</button></div> : <p className="text-sm text-slate-900">当前预设：{preset.name}</p>}
+            <label className={FIELD_LABEL}>预设名称<input autoFocus maxLength={500} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={FIELD_INPUT} /></label>
+            {(['reportTitle', 'exportFilePrefix', 'unitFieldLabel'] as const).map((key, index) => <label key={key} className={FIELD_LABEL}>{['报告标题', '导出文件名前缀', '单位字段名称'][index]}<input maxLength={500} value={draft.profile[key]} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, [key]: e.target.value } })} className={FIELD_INPUT} /></label>)}
+            <label className="flex min-h-9 items-center gap-2 text-sm text-slate-700"><input type="checkbox" className="h-4 w-4" checked={draft.profile.unitFieldRequired} onChange={(e) => setDraft({ ...draft, profile: { ...draft.profile, unitFieldRequired: e.target.checked } })} />单位字段必填</label>
+          </> : loading ? <p role="status" className="text-sm text-slate-600">正在读取预设…</p> : error ? <div role="alert" className="text-sm text-red-700">{error}<button type="button" onClick={onRetry} className="ml-3 min-h-11 underline">重试</button></div> : <p className="text-sm text-slate-900">当前预设：{preset.name}</p>}
           <div className="flex flex-wrap gap-2">
             {projectMode ? <button type="button" disabled={saving} onClick={() => void saveDefault(draft)} className={buttonClass}>设为新建默认</button> : <>
               <button type="button" disabled={saving} onClick={() => inputRef.current?.click()} className={buttonClass}>导入预设</button>
@@ -92,7 +93,7 @@ const PresetDialog: React.FC<PresetDialogProps> = ({ open, preset, projectMode =
           {saving && <p role="status">正在保存…</p>}
           <input ref={inputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => void importPreset(event.target.files?.[0])} />
         </div>
-        <div className="flex justify-end border-t border-slate-200 px-6 py-4"><button type="button" onClick={onClose} disabled={saving} className={buttonClass}>关闭</button></div>
+        <div className={DIALOG_FOOTER}><button type="button" onClick={onClose} disabled={saving} className={buttonClass}>关闭</button></div>
       </div>
     </div>
   );

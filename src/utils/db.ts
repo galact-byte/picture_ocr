@@ -11,7 +11,7 @@ import type {
   ProjectSummary,
 } from '../types';
 import { createDefaultMeta, createPresetAssets } from '../data/defaults';
-import { DEFAULT_PRESET, GENERIC_PROFILE, LEGACY_PROFILE, cloneProfile, normalizeProfile, parsePreset } from './preset';
+import { DEFAULT_PRESET, GENERIC_PROFILE, LEGACY_PROFILE, cloneProfile, normalizeProfile, parsePreset, legacyPresetFromDocument, parseProfile } from './preset';
 import { recordError } from './errorLog';
 import { trackWrite } from './pendingWrites';
 import { createEmptyRepairReport, planSummaryRepair, type SummaryRepairReport } from './summaryRepair';
@@ -39,6 +39,7 @@ const PROJECT_GROUPS_STORE_NAME = 'projectGroups';
 const PROJECT_SUMMARIES_STORE_NAME = 'projectSummaries';
 const SETTINGS_STORE_NAME = 'settings';
 const DEFAULT_PRESET_KEY = 'defaultPreset';
+const LEGACY_PRESET_ONBOARDING_KEY = 'legacyPresetOnboarding';
 const LEGACY_PROJECT_ID = 'current';
 
 // 存储操作超时兜底：卡死超过该阈值时以明确错误返回，避免 UI 无限转圈。
@@ -160,6 +161,90 @@ export async function saveDefaultPreset(preset: ProjectPreset): Promise<void> {
   } finally { db.close(); }
 }
 
+
+export async function getLegacyPresetCandidate(): Promise<ProjectPreset | null> {
+  const db = await openDB();
+  try {
+    return await withTimeout(new Promise<ProjectPreset | null>((resolve, reject) => {
+      const tx = db.transaction([SETTINGS_STORE_NAME, PROJECT_SUMMARIES_STORE_NAME, PROJECTS_STORE_NAME], 'readonly');
+      const settings = tx.objectStore(SETTINGS_STORE_NAME);
+      const defaultRequest = settings.get(DEFAULT_PRESET_KEY);
+      const onboardingRequest = settings.get(LEGACY_PRESET_ONBOARDING_KEY);
+      let candidate: ProjectPreset | null = null;
+      let checked = 0;
+      const checkSettings = () => {
+        if (++checked !== 2 || defaultRequest.result !== undefined || onboardingRequest.result !== undefined) return;
+        const summaries = tx.objectStore(PROJECT_SUMMARIES_STORE_NAME).getAll();
+        summaries.onsuccess = () => {
+          const rows: unknown[] = summaries.result;
+          if (!rows.length) return;
+          const ids: string[] = [];
+          for (const value of rows) {
+            if (!value || typeof value !== 'object') return;
+            const row = value as Record<string, unknown>;
+            if (typeof row.id !== 'string') return;
+            try { if (row.profile !== undefined && JSON.stringify(parseProfile(row.profile)) !== JSON.stringify(LEGACY_PROFILE)) return; }
+            catch { return; }
+            ids.push(row.id);
+          }
+          const projects = tx.objectStore(PROJECTS_STORE_NAME);
+          const keys = projects.getAllKeys();
+          keys.onsuccess = () => {
+            // 摘要遗漏的系统同样参与判定，不能把混合库误当成同一模板。
+            if (keys.result.length !== ids.length || keys.result.some(key => !ids.includes(String(key)))) return;
+            const readNext = (index: number) => {
+              if (index >= ids.length) return;
+              const request = projects.get(ids[index]);
+              request.onsuccess = () => {
+                const next = legacyPresetFromDocument(request.result);
+                if (!next || (candidate && JSON.stringify(candidate) !== JSON.stringify(next))) { candidate = null; return; }
+                candidate = next;
+                readNext(index + 1);
+              };
+            };
+            readNext(0);
+          };
+        };
+      };
+      defaultRequest.onsuccess = onboardingRequest.onsuccess = checkSettings;
+      tx.oncomplete = () => resolve(candidate);
+      tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('读取旧项目模板失败'));
+    }), 'getLegacyPresetCandidate', DB_DOC_TIMEOUT_MS);
+  } finally { db.close(); }
+}
+
+export async function completeLegacyPresetOnboarding(preset: ProjectPreset | null): Promise<ProjectPreset> {
+  const validated = preset === null ? null : parsePreset(preset);
+  const db = await openDB();
+  try {
+    return await trackWrite(new Promise<ProjectPreset>((resolve, reject) => {
+      const tx = db.transaction(SETTINGS_STORE_NAME, 'readwrite');
+      const timer = setTimeout(() => { try { tx.abort(); } catch { /* 已完成的事务以真实终态为准。 */ } }, DB_OP_TIMEOUT_MS);
+      const store = tx.objectStore(SETTINGS_STORE_NAME);
+      const defaultRequest = store.get(DEFAULT_PRESET_KEY);
+      const onboardingRequest = store.get(LEGACY_PRESET_ONBOARDING_KEY);
+      let result = DEFAULT_PRESET;
+      let error: unknown;
+      let checked = 0;
+      const save = () => {
+        if (++checked !== 2) return;
+        try {
+          if (defaultRequest.result !== undefined) { result = parsePreset(defaultRequest.result.preset); return; }
+          if (onboardingRequest.result !== undefined) return;
+          result = validated ?? parsePreset(DEFAULT_PRESET);
+          if (validated) store.put({ id: DEFAULT_PRESET_KEY, preset: validated });
+          store.put({ id: LEGACY_PRESET_ONBOARDING_KEY, choice: validated ? 'legacy' : 'generic' });
+        } catch (cause) { error = cause; tx.abort(); }
+      };
+      defaultRequest.onsuccess = onboardingRequest.onsuccess = save;
+      tx.oncomplete = () => { clearTimeout(timer); resolve(result); };
+      tx.onerror = tx.onabort = () => { clearTimeout(timer); reject(error ?? tx.error ?? new Error('保存模板选择失败')); };
+    }));
+  } catch (error) {
+    recordError({ type: 'manual', message: error instanceof Error ? error.message : String(error), context: 'db:completeLegacyPresetOnboarding' });
+    throw error;
+  } finally { db.close(); }
+}
 
 // 不用「摘要数 >= 项目数」这种近似判断——数目相等也可能是「补了一条新的、漏了一条旧的」，
 // 那条漏掉的项目就会永久从列表消失（v0.6.1 跳过坏记录即造成用户少了一个项目）。
@@ -682,8 +767,8 @@ export async function updateProjectGroupAndSystems(group: ProjectGroup): Promise
   }), 'updateProjectGroupAndSystems', DB_DOC_TIMEOUT_MS));
 }
 
-export async function loadProject(projectId: string): Promise<ProjectDocument | null> {
-  await migrateLegacyProjectIfNeeded();
+export async function loadProject(projectId: string, options: { migrateLegacy?: boolean } = {}): Promise<ProjectDocument | null> {
+  if (options.migrateLegacy !== false) await migrateLegacyProjectIfNeeded();
   const db = await openDB();
   return withTimeout(new Promise<ProjectDocument | null>((resolve, reject) => {
     const tx = db.transaction(PROJECTS_STORE_NAME, 'readonly');

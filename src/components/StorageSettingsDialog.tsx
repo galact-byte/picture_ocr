@@ -14,6 +14,7 @@ import {
 import type { SummaryRepairReport } from '../utils/summaryRepair';
 import { getPersistenceState, requestPersistence, type PersistenceState } from '../utils/storagePersistence';
 import { getDataDiskFree, loadReminderSettings, saveReminderSettings, type ReminderSettings } from '../utils/storageReminder';
+import { DIALOG_CLOSE } from './dialogStyles';
 
 interface StorageSettingsDialogProps {
   onClose: () => void;
@@ -309,7 +310,7 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h2 className="text-base font-semibold text-slate-950">存储设置</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700" aria-label="关闭">
+          <button type="button" onClick={onClose} className={DIALOG_CLOSE} aria-label="关闭">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M18 6L6 18" />
             </svg>

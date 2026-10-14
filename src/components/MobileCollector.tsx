@@ -21,9 +21,12 @@ function projectName(document: ProjectDocument): string {
 
 /** 手机端缩略图：字节在独立 store，按需取，避免把整份采集包的 Base64 常驻手机内存。 */
 const MobileImage: React.FC<{ projectId: string; image: ImageData; className: string }> = ({ projectId, image, className }) => {
-  const src = useImageSrc(projectId, image);
-  if (!src) return <div className={`${className} flex items-center justify-center bg-slate-100 text-xs text-slate-400`}>加载中…</div>;
-  return <img src={src} alt={image.fileName} className={className} />;
+  const state = useImageSrc(projectId, image);
+  if (!state.src) {
+    const placeholder = state.status === 'loading' ? '加载中…' : state.status === 'missing' ? '图片缺失' : '读取失败';
+    return <div className={`${className} flex items-center justify-center text-xs ${state.status === 'error' ? 'bg-red-50 text-red-700' : state.status === 'missing' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>{placeholder}</div>;
+  }
+  return <img src={state.src} onError={state.onError} alt={image.fileName} className={className} />;
 };
 
 const MobileCollector: React.FC<MobileCollectorProps> = ({ projectId, onBack }) => {
