@@ -2,7 +2,7 @@
   "name": "picture_ocr",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "description": "证据采集工具",
   "author": "galact",
   "repository": {
