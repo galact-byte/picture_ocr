@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"检查两处批量入口的布局、键盘语义与状态提示"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"检查可见选中交集、归档边界、只读导出与源操作生命周期"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"检查真实双端生产构建、ZIP 下载和失败场景证据"}
+{"file":".trellis/spec/frontend/encrypted-package-guidelines.md","reason":"确认单系统 ZIP 导入和现有加密协议兼容性"}

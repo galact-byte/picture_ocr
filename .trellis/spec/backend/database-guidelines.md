@@ -13,12 +13,14 @@
 | `projectGroups` | `id` | `updatedAt` | `ProjectGroup`（项目组元数据） |
 | `projectSummaries` | `id` | `updatedAt` | 列表用轻量摘要（`id/groupId/meta/assetCount/createdAt/updatedAt/archive`），无图片字节 |
 | `images` | `key` | `by_project(projectId)` | 图片字节，主键 `${projectId}:${imageId}` |
-| `settings` | `id` | — | 默认 `ProjectPreset`，固定 key `defaultPreset`，只保存模板与 `ProjectProfile` |
+| `settings` | `id` | — | 默认 `ProjectPreset`（`defaultPreset`）与旧模板引导选择（`legacyPresetOnboarding`） |
 
 - `settings` 的记录为 `{ id: 'defaultPreset', preset: { version: 1, name, categories, profile } }`，不包含项目身份、单位值、资产实例或图片；`getDefaultPreset()` 无记录时返回通用默认值，保存/读取必须深拷贝。
 - 预设 JSON 在文件边界执行 version、类型、ID、顺序、数量、文本长度和 1 MiB 限制校验；导入失败不得写入 settings。
 - `onupgradeneeded` 只建表/建索引；遍历数据的回填放在升级完成后（`ensureSummariesSynced`、`migrateInlineImages`），否则一条坏数据会中止 versionchange 并回滚版本。
 - 未迁移的老项目仍可能在 `ImageData.data` 内联 Base64，两种形态共存；读图必须经 `resolveImageData` / `hydrateAssets`，不能直读 `image.data`。
+
+- `loadProject(projectId, options?: { migrateLegacy?: boolean })` 默认先检查 v1 遗留单项目迁移。批量导出读取列表里已经存在的系统时传 `{ migrateLegacy: false }`，避免仅为读取而打开迁移读写事务；不能将此选项当成所有入口的默认值或用来跳过新库初始化。`hydrateAssets` 只补齐返回值，不写回图片或文档，缺失字节会保留原引用，调用方必须另行校验完整性。
 
 ## 预设与项目配置契约
 
@@ -29,6 +31,8 @@
 ### 2. 接口
 
 - `getDefaultPreset(): Promise<ProjectPreset>`、`saveDefaultPreset(preset): Promise<void>`。
+- `getLegacyPresetCandidate(): Promise<ProjectPreset | null>`：仅在点击新建后检测；已有默认或引导选择时返回 null。顺序只读核对全部系统、摘要主键与固定旧等保分类标识/类型及配置，混合或无法确认时不提供继承。
+- `completeLegacyPresetOnboarding(preset: ProjectPreset | null): Promise<ProjectPreset>`：null 表示继续通用；同一 settings 事务内重查现有默认与选择，保护其他窗口已经保存的默认，保存继承配置和选择记录后以实际 complete/abort 结算。取消不写记录。
 - `createProjectDocument(meta?, groupId?, preset?)` 是同步工厂；UI 必须先读取预设并传入同一快照。
 - `createSystemForGroup(group, systemName, preset?)` 使用组的 profile；未传 preset 时异步读取默认分类模板。
 - `updateProjectGroupAndSystems(group)` 在读写事务内检查组及成员单位必填规则。
@@ -149,6 +153,14 @@
 ### 7. 错误与正确
 
 错误：在权限检查中递归创建旧路径，异常后继续打开默认空库，或把两套 LevelDB 目录合并复制。正确：检查已有路径，恢复成功后才创建窗口；重连只改指针，迁移前拒绝占用目标。
+
+## 恢复数据交付校验
+
+- 恢复时分别校验系统文档的分类/检查项/profile、本机 `settings.defaultPreset` 和 `projectGroups`/文档 `groupId`；标准单系统 ZIP 不携带本机默认预设或项目组归属，导入成功不等于三者全部恢复。
+- 重建隔离恢复库时，无默认记录会回退通用模板。已确认需要等保默认时，从幸存且可识别的旧文档提取预设，经 `saveDefaultPreset` 保存；不把单位、资产和图片带入预设，不改写已有系统模板。
+- 缺少原文档的图片只按原系统 ID 保持分隔，临时名称和待整理图片结构必须明示。原组记录及成员关系缺失时，独立列表只是临时呈现，不能认定原来就是独立系统；须有原记录或用户确认的对应关系再重建，不按图片数量猜分组。
+- 原资料包与用户正式库不写入；证据检查使用独立只读入口和隔离副本，正式应用验证只在副本上进行。交付 ZIP 完整性校验后，从该 ZIP 解压的库实际打开系统并解码图片，再重启验证默认预设、单位必填和同组多系统新建，确认原恢复文档与图片不变。
+- 真实资料、恢复包和运行时证据仅留在忽略的本地目录，不进入 Git 或公开 Release。
 
 ## 反模式
 

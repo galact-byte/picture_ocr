@@ -23,6 +23,6 @@
 
 ## 修改前检查
 
-- 确认目标属于 `components`、`context`、`types`、`utils` 或 `data` 中的既有职责边界。
+- 确认目标属于 `components`、`hooks`、`context`、`types`、`utils` 或 `data` 中的既有职责边界。
 - 修改共享常量、协议、路由或关键文案前先搜索全仓引用和验证脚本。
 - 新增外部输入、浏览器 API 或异步资源时，明确运行时校验、错误反馈和 cleanup。

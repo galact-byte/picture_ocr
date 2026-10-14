@@ -64,6 +64,43 @@ dispatch({ type: 'REORDER_ITEMS', payload: { assetId: asset.id, itemIds } });
 6. **验证**：`node scripts/verify-project-list-views.mjs` 检查分类、项目/系统搜索、首次与全部收起、无效 ID 修剪、选择交集和不可变性；`npm run build` 后运行 `node scripts/verify-project-list-ui.mjs` 检查隔离双端展开、返回、选择边界、新建/添加、保存/刷新失败、导入导出及采集。
 7. **反例**：错误是用展开集合为空判断首次加载，或直接用搜索裁剪后的系统发起组级采集；正确是以 null 区分初始化，保留空集合，以及从未裁剪 summary 生成组级采集范围。
 
+## 批量数据包导出契约
+
+### 1. 范围
+
+项目组展开列表与独立系统列表的“导出选中”；沿用当前可见选择交集和原有换组、切页、搜索、收起清选择规则。
+
+### 2. 接口
+
+- `exportBatchDataPackage(targets: readonly BatchExportTarget[], onProgress: (message: string) => void, signal?: AbortSignal): Promise<void>`，定义于 `src/utils/exportImport.ts`。
+- `BatchExportTarget = { id: string; name: string; archived: boolean }` 是点击时的选择快照。UI 用同步 ref 防重入，卸载时 abort。
+- `loadProject(id, { migrateLegacy: false })` 仅用于已经在列表中的系统，跳过旧单项目迁移，保持导出路径只读；其他调用默认迁移行为不变。
+
+### 3. 产物与数据契约
+
+- 只下载一次总 ZIP，根目录每个文件是独立系统 ZIP；子包仍由 `createDataPackageBlob` 生成 `manifest.json + images/`，包含 meta、profile、分类、模板、资产与图片。恢复时先解压总包，再走原覆盖或合并导入。
+- 顺序读取、补图和打包，不并行持有全部 hydrated 文档；外层 JSZip 仍在内存保留子包与最终 Blob，不能承诺恒定内存或大型真实库的容量上限。
+- 文件名含净化后的前缀、项目名、系统名与日期；各名称段分别限制长度并避免切断 Unicode 代理对，净化后按大小写不敏感规则追加序号防覆盖。
+- 导出不写回文档、摘要或图片；`hydrateAssets` 遇到缺图会保留引用，因此必须显式检查每张引用已补齐非空 data，不能仅以补齐函数返回成功为依据。
+
+### 4. 失败与生命周期
+
+- 空选择禁用入口且工具层拒绝；摘要已归档或现读文档已归档、文档消失、读取失败、缺图、打包失败均整次停止，不下载部分包；错误标明受影响系统。
+- 导出期间禁用当前列表的选择和源操作；处理范围固定为点击时快照。finally 释放忙碌态，选择保留以便重试；卸载取消在最终下载前检查 signal。
+- 成功提示只能说明“已生成并发起下载”，不得把浏览器下载触发说成已落盘。进度用可访问状态消息；不承诺其他窗口与手机更新的跨系统事务快照。
+
+### 5. 正常与边界例
+
+同组 15 个带图片系统全选得到 1 个总 ZIP 和 15 个可单独导入的 ZIP；搜索子集仅导出匹配的选中系统。混选归档系统或其中一张图缺失时没有下载，原勾选仍保留；长名称与同名系统不会覆盖子包。
+
+### 6. 验证
+
+`npm run build` 后运行 `node scripts/verify-project-list-ui.mjs`：隔离 Web/Electron 检查 15 系统、总包与子包图片字节、profile/模板、真实覆盖/合并导入、名称边界、失败重试、防重入、顺序读取、零写事务及真实卸载取消；375/768/1440px 检查两处入口，CDP Space/Enter 触发原生控件，读取实际下载文件确认总包和子包可打开。另跑列表派生、image-store、加密包和归档格式回归。
+
+### 7. 反例
+
+错误：对每个系统调用一次单系统下载，或缺图后仍下载已成功系统的部分备份；整体截断文件名使长项目名挤掉系统名。正确：全部系统完成且图片完整后一次下载，分别限制名称段长度，失败保留选择。
+
 ## 存储操作超时与报错采集
 
 - `db.ts` 普通路径用 `withTimeout` 包裹 `openDB` 与事务；`addImageToProject` 是必须区分真实提交的例外：120 秒时请求 abort，以实际 oncomplete/onabort 结算，trackWrite 持续到真实终态，迟到 complete 仍是成功。不得用包装 Promise 超时推断图片没有保存。

@@ -1,0 +1,6 @@
+{"file":".trellis/spec/frontend/index.md","reason":"前端规范入口与修改前检查"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"项目列表操作区、按钮样式和可访问交互"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"选择范围、摘要读取、profile 透传和归档只读规则"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"浏览器下载约定、双端隔离验证与生产构建基线"}
+{"file":".trellis/spec/frontend/encrypted-package-guidelines.md","reason":"保留现有 ZIP 与加密包边界，不复制包协议"}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"复用已有 ZIP、图片补齐、净化及选择逻辑"}
