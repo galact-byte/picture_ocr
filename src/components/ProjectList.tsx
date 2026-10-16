@@ -442,8 +442,8 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
       const targetDocument = await loadProject(importTargetId);
       if (!targetDocument) return { success: false, message: '导入失败：目标系统不存在或已被删除' };
       const result = isEvidencePackageFile(file)
-        ? await importEncryptedDataPackage(file, password, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta, targetDocument.profile)
-        : await importDataPackage(file, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta, targetDocument.profile);
+        ? await importEncryptedDataPackage(file, password, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta, targetDocument.profile, targetDocument.id)
+        : await importDataPackage(file, mode, targetDocument.assets, targetDocument.categories, targetDocument.meta, targetDocument.profile, targetDocument.id);
       if (!result.success || !result.data) return { success: false, message: result.message };
       const group = targetDocument.groupId ? await getGroupForSystem(targetDocument.groupId) : null;
       const meta: ProjectMeta = group && mode === 'overwrite'

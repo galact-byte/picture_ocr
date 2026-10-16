@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { decryptEvidenceBlob, encryptEvidenceBlob } from './evidencePackage';
 import { blobToDataUrl, compressImageBlob, dataUrlToBlob } from './imageCompression';
-import { hydrateAssets, loadProject } from './db';
+import { hydrateAssets, loadProject, resolveImageData } from './db';
 import { LEGACY_PROFILE, normalizeProfile, parseProfile, sanitizeFileNamePart } from './preset';
 import type {
   ProjectMeta,
@@ -215,7 +215,8 @@ export async function importDataPackage(
   existingAssets: Asset[],
   existingCategories: Category[],
   existingMeta: ProjectMeta,
-  existingProfile?: ProjectProfile
+  existingProfile?: ProjectProfile,
+  existingProjectId?: string
 ): Promise<ImportResult> {
   try {
     const zip = await JSZip.loadAsync(file);
@@ -311,7 +312,7 @@ export async function importDataPackage(
     // settings; imported screenshots are unioned by image id so old packages do
     // not accidentally delete newer local screenshots.
     if (mode === 'merge') {
-      const mergedAssets = mergeAssets(existingAssets, newAssets);
+      const mergedAssets = await mergeAssets(existingAssets, newAssets, existingProjectId);
       const mergedCategories = mergeCategories(existingCategories, newCategories);
 
       return {
@@ -343,11 +344,12 @@ export async function importEncryptedDataPackage(
   existingAssets: Asset[],
   existingCategories: Category[],
   existingMeta: ProjectMeta,
-  existingProfile?: ProjectProfile
+  existingProfile?: ProjectProfile,
+  existingProjectId?: string
 ): Promise<ImportResult> {
   try {
     const zipBlob = await decryptEvidenceBlob(file, password);
-    return importDataPackage(zipBlob, mode, existingAssets, existingCategories, existingMeta, existingProfile);
+    return importDataPackage(zipBlob, mode, existingAssets, existingCategories, existingMeta, existingProfile, existingProjectId);
   } catch (err) {
     return {
       success: false,
@@ -390,7 +392,7 @@ function mergeCategories(
   return merged.sort((a, b) => a.order - b.order);
 }
 
-function mergeAssets(existingAssets: Asset[], importedAssets: Asset[]): Asset[] {
+async function mergeAssets(existingAssets: Asset[], importedAssets: Asset[], projectId?: string): Promise<Asset[]> {
   const merged = existingAssets.map(cloneAsset);
 
   for (const importedAsset of importedAssets) {
@@ -410,7 +412,7 @@ function mergeAssets(existingAssets: Asset[], importedAssets: Asset[]): Asset[] 
         continue;
       }
 
-      mergeImages(existingItem.images, importedItem.images);
+      await mergeImages(existingItem.images, importedItem.images, projectId);
     }
   }
 
@@ -446,12 +448,25 @@ function findMatchingItem(items: CheckItem[], importedItem: CheckItem): CheckIte
     ?? items.find((item) => normalizeName(item.label) === normalizeName(importedItem.label));
 }
 
-function mergeImages(existingImages: ImageData[], importedImages: ImageData[]): void {
+async function mergeImages(existingImages: ImageData[], importedImages: ImageData[], projectId?: string): Promise<void> {
   const imageKeys = new Set(existingImages.flatMap((image) => getImageDedupKeys(image)));
+  const imagesById = new Map(existingImages.map((image) => [image.id, image]));
   for (const importedImage of importedImages) {
+    const existingImage = imagesById.get(importedImage.id);
+    if (existingImage) {
+      // 引用形态不代表缺图；先查独立图片表，只补缺失的字节，保留本地元数据。
+      const data = existingImage.data || (projectId ? await resolveImageData(projectId, existingImage) : null);
+      if (!data && importedImage.data) {
+        existingImage.data = importedImage.data;
+        getImageDedupKeys(existingImage).forEach((key) => imageKeys.add(key));
+      }
+      continue;
+    }
     const importedKeys = getImageDedupKeys(importedImage);
     if (importedKeys.some((key) => imageKeys.has(key))) continue;
-    existingImages.push({ ...importedImage });
+    const added = { ...importedImage };
+    existingImages.push(added);
+    imagesById.set(added.id, added);
     importedKeys.forEach((key) => imageKeys.add(key));
   }
 }

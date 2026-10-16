@@ -122,7 +122,7 @@ const MobileCollector: React.FC<MobileCollectorProps> = ({ projectId, onBack }) 
     if (!importPassword) return setMessage('导入加密采集包前请输入密码。');
     setImporting(true);
     try {
-      const result = await importEncryptedDataPackage(file, importPassword, 'merge', document.assets, document.categories, document.meta);
+      const result = await importEncryptedDataPackage(file, importPassword, 'merge', document.assets, document.categories, document.meta, document.profile, document.id);
       if (!result.success || !result.data) return setMessage(result.message);
       await persist({ ...document, ...result.data });
       setImportPassword('');

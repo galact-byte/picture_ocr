@@ -2,7 +2,7 @@
   "name": "picture_ocr",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "description": "证据采集工具",
   "author": "galact",
   "repository": {
@@ -19,6 +19,7 @@
     "verify:data-location": "node scripts/verify-data-location.cjs",
     "verify:storage-estimate": "node scripts/verify-storage-estimate.mjs",
     "verify:evidence-package": "node scripts/verify-evidence-package.mjs",
+    "verify:merge-import": "node scripts/verify-merge-import.mjs",
     "verify:lan-image-sink": "node scripts/verify-lan-image-sink.mjs",
     "verify:image-compression": "node scripts/verify-image-compression.mjs",
     "verify:list-summary-store": "node scripts/verify-list-summary-store.mjs",

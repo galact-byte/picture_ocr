@@ -101,6 +101,12 @@ dispatch({ type: 'REORDER_ITEMS', payload: { assetId: asset.id, itemIds } });
 
 错误：对每个系统调用一次单系统下载，或缺图后仍下载已成功系统的部分备份；整体截断文件名使长项目名挤掉系统名。正确：全部系统完成且图片完整后一次下载，分别限制名称段长度，失败保留选择。
 
+## 数据包合并导入
+
+- 图片 ID 相同不等于图片字节存在。生产合并入口调用 `importDataPackage` / `importEncryptedDataPackage` 时须传入目标 `projectId`。`mergeImages` 用内联 `data` 或 `resolveImageData(projectId, existingImage)` 查询独立图片表；只有现有引用无字节且包内有字节时才补图。
+- 补图只更新字节，保留本地备注、文件名、时间及检查项设置；已有图片不覆盖，重复导入不增加引用。读取图片表失败须使导入失败，不能按缺图处理，也不能保存部分合并结果。
+- `npm run verify:merge-import` 在 Web/Electron 覆盖普通 ZIP、加密包、内联图片、同 ID 空引用补图、保留已有图片、重复导入、重连后解码及读取失败时目标库不变。真实恢复包须从列表合并入口验证数量、原检查项归属、结构和已有字节不变，并在独立进程重启后确认补图实际显示。
+
 ## 存储操作超时与报错采集
 
 - `db.ts` 普通路径用 `withTimeout` 包裹 `openDB` 与事务；`addImageToProject` 是必须区分真实提交的例外：120 秒时请求 abort，以实际 oncomplete/onabort 结算，trackWrite 持续到真实终态，迟到 complete 仍是成功。不得用包装 Promise 超时推断图片没有保存。
