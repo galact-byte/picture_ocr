@@ -299,3 +299,39 @@
 ### Next Steps
 
 - 原恢复库多系统归属仍需原始记录或明确对应关系；本次升级不自动补回缺失数据。
+
+
+## Session 9: 等保预设、系统分组与窄屏工作台交付
+<!-- trellis-session: v=2 fp=c8f88261357c83d8 -->
+
+**Date**: 2026-10-20
+**Task**: 等保预设、系统分组与窄屏工作台交付
+**Branch**: `fix/preset-group-experience`
+
+### Summary
+
+完成 R1–R5 及模板确认框遮罩冒泡修复，归档父任务与四个子任务；构建本地 Web ZIP/Windows 便携版，待推送当前修复分支。
+
+### Main Changes
+
+- 保留原系统证据的原子转组、进入列表旧库引导和八类资产灰色示例
+- 同一侧栏实例的窄屏导航、跨断点草稿/焦点及嵌套确认取消保护
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3e03613` | fix: 修正等保引导、系统分组及窄屏工作台 |
+
+### Testing
+
+- [OK] 追加修复后构建及工作台76、列表43、预设52报告组通过；此前完整11条受影响回归通过
+- [OK] Web包21条目CRC/字节校验；ASAR内18文件一致；临时数据目录打包入口启动成功
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 推送origin/fix/preset-group-experience并回读提交号；不改main、不发布Release
