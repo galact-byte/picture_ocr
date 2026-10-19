@@ -2,4 +2,4 @@
 {"file":".trellis/spec/backend/database-guidelines.md","reason":"审查原子性、显式默认保护及图片关联不变"}
 {"file":".trellis/spec/frontend/component-guidelines.md","reason":"核对最小 UI 范围、类型选项、示例和可访问性"}
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"执行父任务影响范围的真实双端回归"}
-{"file":".trellis/tasks/10-19-preset-group-experience/research/current-behavior.md","reason":"对照已确认缺陷，不把未知现场状态说成已验证"}
+{"file":".trellis/tasks/archive/2026-10/10-19-preset-group-experience/research/current-behavior.md","reason":"对照已确认缺陷，不把未知现场状态说成已验证"}

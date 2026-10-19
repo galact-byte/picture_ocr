@@ -1,4 +1,4 @@
 {"file":".trellis/spec/frontend/state-management.md","reason":"跨子任务的预设快照、摘要、归属与导航不变量"}
 {"file":".trellis/spec/backend/database-guidelines.md","reason":"settings 与转组写事务、图片键及兼容性约束"}
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"双端隔离回归、真实界面和证据纪律"}
-{"file":".trellis/tasks/10-19-preset-group-experience/research/current-behavior.md","reason":"四项需求的实际代码证据、最小复现与验证入口"}
+{"file":".trellis/tasks/archive/2026-10/10-19-preset-group-experience/research/current-behavior.md","reason":"四项需求的实际代码证据、最小复现与验证入口"}

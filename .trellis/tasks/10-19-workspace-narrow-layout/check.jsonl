@@ -1,4 +1,0 @@
-{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"隔离双端、真实键盘、三档以上截图及相关回归"}
-{"file":".trellis/spec/frontend/component-guidelines.md","reason":"无多余说明控件，真实几何与模态语义"}
-{"file":".trellis/tasks/10-19-workspace-narrow-layout/prd.md","reason":"R5 的可独立验收范围与不改数据约束"}
-{"file":".trellis/tasks/10-19-workspace-narrow-layout/design.md","reason":"跨断点草稿、宽度、inert 与嵌套模态检查"}

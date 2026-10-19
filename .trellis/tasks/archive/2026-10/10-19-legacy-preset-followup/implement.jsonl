@@ -2,4 +2,4 @@
 {"file":".trellis/spec/backend/database-guidelines.md","reason":"预设输入校验、settings 原子写与显式选择保护"}
 {"file":".trellis/spec/frontend/hook-guidelines.md","reason":"延后检测、取消、代际与连接清理"}
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"原生隔离 IDB 与预设双端验证方式"}
-{"file":".trellis/tasks/10-19-preset-group-experience/research/current-behavior.md","reason":"自带等保 profile 被拒绝的只读复现与原任务来源"}
+{"file":".trellis/tasks/archive/2026-10/10-19-preset-group-experience/research/current-behavior.md","reason":"自带等保 profile 被拒绝的只读复现与原任务来源"}

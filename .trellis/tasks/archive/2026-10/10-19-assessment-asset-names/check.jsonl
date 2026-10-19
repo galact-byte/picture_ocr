@@ -1,4 +1,4 @@
 {"file":".trellis/spec/frontend/component-guidelines.md","reason":"审查未增加候选按钮、下拉或额外操作步骤"}
 {"file":".trellis/spec/frontend/state-management.md","reason":"空输入保持为空、示例不创建资产、未知分类安全回退"}
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"八分类逐项与改名/切默认、键盘和三档证据"}
-{"file":".trellis/tasks/10-19-preset-group-experience/research/current-behavior.md","reason":"对照用户明确范围，避免再次膨胀成资产预设选择器"}
+{"file":".trellis/tasks/archive/2026-10/10-19-preset-group-experience/research/current-behavior.md","reason":"对照用户明确范围，避免再次膨胀成资产预设选择器"}

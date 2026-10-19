@@ -2,4 +2,4 @@
 {"file":".trellis/spec/backend/database-guidelines.md","reason":"核对输入边界、设置保护、事务实际终态"}
 {"file":".trellis/spec/frontend/component-guidelines.md","reason":"引导文案、互斥模态框与键盘焦点"}
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"双端引导、失败与三档截图证据"}
-{"file":".trellis/tasks/10-19-preset-group-experience/research/current-behavior.md","reason":"确认修复覆盖真实已知根因而非仅触发时机"}
+{"file":".trellis/tasks/archive/2026-10/10-19-preset-group-experience/research/current-behavior.md","reason":"确认修复覆盖真实已知根因而非仅触发时机"}

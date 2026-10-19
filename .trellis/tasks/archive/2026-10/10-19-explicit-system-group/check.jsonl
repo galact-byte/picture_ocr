@@ -2,4 +2,4 @@
 {"file":".trellis/spec/backend/database-guidelines.md","reason":"审查事务原子性、源版本和归档保护、原图片关联不变"}
 {"file":".trellis/spec/frontend/component-guidelines.md","reason":"核对类型控件、键盘、焦点与单成员组界面"}
 {"file":".trellis/spec/frontend/quality-guidelines.md","reason":"双端真实写入、采集、导出导入与三档布局回归"}
-{"file":".trellis/tasks/10-19-preset-group-experience/research/current-behavior.md","reason":"保证修改不以显示层伪分组掩盖根因"}
+{"file":".trellis/tasks/archive/2026-10/10-19-preset-group-experience/research/current-behavior.md","reason":"保证修改不以显示层伪分组掩盖根因"}
