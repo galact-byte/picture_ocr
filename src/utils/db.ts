@@ -11,7 +11,7 @@ import type {
   ProjectSummary,
 } from '../types';
 import { createDefaultMeta, createPresetAssets } from '../data/defaults';
-import { DEFAULT_PRESET, GENERIC_PROFILE, LEGACY_PROFILE, cloneProfile, normalizeProfile, parsePreset, legacyPresetFromDocument, parseProfile } from './preset';
+import { DEFAULT_PRESET, GENERIC_PROFILE, LEGACY_PROFILE, cloneProfile, normalizeProfile, parsePreset, legacyPresetFromDocument } from './preset';
 import { recordError } from './errorLog';
 import { trackWrite } from './pendingWrites';
 import { createEmptyRepairReport, planSummaryRepair, type SummaryRepairReport } from './summaryRepair';
@@ -73,10 +73,25 @@ function withTimeout<T>(op: Promise<T>, label: string, timeoutMs = DB_OP_TIMEOUT
   });
 }
 
-function openDB(): Promise<IDBDatabase> {
-  return withTimeout(new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+function openDB(signal?: AbortSignal): Promise<IDBDatabase> {
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', cancel); };
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (!(error instanceof DOMException && error.name === 'AbortError')) recordError({ type: 'manual', message: error instanceof Error ? error.message : String(error), context: 'db:openDB' });
+      reject(error);
+    };
+    const cancel = () => fail(new DOMException('已取消数据库打开', 'AbortError'));
+    const timer = setTimeout(() => fail(new Error('IndexedDB 操作超时（openDB），数据库被占用或数据量过大')), DB_OPEN_TIMEOUT_MS);
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) { cancel(); return; }
+    let request: IDBOpenDBRequest;
+    try { request = indexedDB.open(DB_NAME, DB_VERSION); } catch (error) { fail(error); return; }
     request.onupgradeneeded = () => {
+      if (settled) { request.transaction?.abort(); return; }
       // 升级事务里只做「建表 / 建索引」等结构变更，绝不遍历数据。
       // 任何在 versionchange 事务回调里抛出的异常都会中止整个升级并回滚版本，
       // 使 DB 永久卡在旧版本、之后每次 open 都重跑并再次崩溃（v0.6.0 摘要回填游标即因坏记录读 .id 抛错触发此问题）。
@@ -125,10 +140,15 @@ function openDB(): Promise<IDBDatabase> {
         try { tx.abort(); } catch { /* 事务可能已中止，忽略 */ }
       }
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('数据库升级被占用（onblocked），请关闭其他打开本工具的窗口后重试'));
-  }), 'openDB', DB_OPEN_TIMEOUT_MS);
+    request.onsuccess = () => {
+      if (settled) { request.result.close(); return; }
+      settled = true;
+      cleanup();
+      resolve(request.result);
+    };
+    request.onerror = () => fail(request.error);
+    request.onblocked = () => fail(new Error('数据库升级被占用（onblocked），请关闭其他打开本工具的窗口后重试'));
+  });
 }
 
 export async function getDefaultPreset(): Promise<ProjectPreset> {
@@ -162,55 +182,76 @@ export async function saveDefaultPreset(preset: ProjectPreset): Promise<void> {
 }
 
 
-export async function getLegacyPresetCandidate(): Promise<ProjectPreset | null> {
-  const db = await openDB();
+export async function getLegacyPresetCandidate(signal?: AbortSignal): Promise<ProjectPreset | null> {
   try {
-    return await withTimeout(new Promise<ProjectPreset | null>((resolve, reject) => {
-      const tx = db.transaction([SETTINGS_STORE_NAME, PROJECT_SUMMARIES_STORE_NAME, PROJECTS_STORE_NAME], 'readonly');
-      const settings = tx.objectStore(SETTINGS_STORE_NAME);
-      const defaultRequest = settings.get(DEFAULT_PRESET_KEY);
-      const onboardingRequest = settings.get(LEGACY_PRESET_ONBOARDING_KEY);
-      let candidate: ProjectPreset | null = null;
-      let checked = 0;
-      const checkSettings = () => {
-        if (++checked !== 2 || defaultRequest.result !== undefined || onboardingRequest.result !== undefined) return;
-        const summaries = tx.objectStore(PROJECT_SUMMARIES_STORE_NAME).getAll();
-        summaries.onsuccess = () => {
-          const rows: unknown[] = summaries.result;
-          if (!rows.length) return;
-          const ids: string[] = [];
-          for (const value of rows) {
-            if (!value || typeof value !== 'object') return;
-            const row = value as Record<string, unknown>;
-            if (typeof row.id !== 'string') return;
-            try { if (row.profile !== undefined && JSON.stringify(parseProfile(row.profile)) !== JSON.stringify(LEGACY_PROFILE)) return; }
-            catch { return; }
-            ids.push(row.id);
-          }
-          const projects = tx.objectStore(PROJECTS_STORE_NAME);
-          const keys = projects.getAllKeys();
-          keys.onsuccess = () => {
-            // 摘要遗漏的系统同样参与判定，不能把混合库误当成同一模板。
-            if (keys.result.length !== ids.length || keys.result.some(key => !ids.includes(String(key)))) return;
-            const readNext = (index: number) => {
-              if (index >= ids.length) return;
-              const request = projects.get(ids[index]);
-              request.onsuccess = () => {
-                const next = legacyPresetFromDocument(request.result);
-                if (!next || (candidate && JSON.stringify(candidate) !== JSON.stringify(next))) { candidate = null; return; }
-                candidate = next;
-                readNext(index + 1);
+    return await new Promise<ProjectPreset | null>((resolve, reject) => {
+      let connection: IDBDatabase | undefined;
+      let tx: IDBTransaction | undefined;
+      let settled = false;
+      const finish = (error: unknown, candidate: ProjectPreset | null = null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', cancel);
+        if (error) { try { tx?.abort(); } catch { /* 事务可能已经结束。 */ } }
+        connection?.close();
+        if (error) reject(error); else resolve(candidate);
+      };
+      const cancel = () => finish(new DOMException('已取消旧模板检查', 'AbortError'));
+      const timer = setTimeout(() => finish(new Error('读取旧项目模板超时，请重试')), DB_DOC_TIMEOUT_MS);
+      signal?.addEventListener('abort', cancel, { once: true });
+      if (signal?.aborted) { cancel(); return; }
+      void openDB(signal).then(db => {
+        connection = db;
+        if (settled) { db.close(); return; }
+        try {
+          const transaction = db.transaction([SETTINGS_STORE_NAME, PROJECT_SUMMARIES_STORE_NAME, PROJECTS_STORE_NAME], 'readonly');
+          tx = transaction;
+          const settings = transaction.objectStore(SETTINGS_STORE_NAME);
+          const defaultRequest = settings.get(DEFAULT_PRESET_KEY);
+          const onboardingRequest = settings.get(LEGACY_PRESET_ONBOARDING_KEY);
+          let candidate: ProjectPreset | null = null;
+          let latestTime = -Infinity;
+          let checked = 0;
+          const checkSettings = () => {
+            if (++checked !== 2 || settled || defaultRequest.result !== undefined || onboardingRequest.result !== undefined) return;
+            const summaries = transaction.objectStore(PROJECT_SUMMARIES_STORE_NAME).getAllKeys();
+            summaries.onsuccess = () => {
+              if (settled || !summaries.result.length || summaries.result.some(key => typeof key !== 'string' || !key)) return;
+              const ids = (summaries.result as string[]).sort();
+              const idSet = new Set(ids);
+              const projects = transaction.objectStore(PROJECTS_STORE_NAME);
+              const keys = projects.getAllKeys();
+              keys.onsuccess = () => {
+                if (settled || keys.result.length !== ids.length || keys.result.some(key => typeof key !== 'string' || !idSet.has(key))) return;
+                // ID 升序先读；时间相同时保留先到的模板，不依赖数据库游标顺序。
+                const readNext = (index: number) => {
+                  if (settled || index >= ids.length) return;
+                  const request = projects.get(ids[index]);
+                  request.onsuccess = () => {
+                    if (settled) return;
+                    const raw = request.result;
+                    const next = legacyPresetFromDocument(raw);
+                    if (!next || raw.id !== ids[index] || typeof raw.updatedAt !== 'number' || !Number.isFinite(raw.updatedAt)
+                      || raw.updatedAt < 0 || !isInspectableProject(raw) || !raw.meta || typeof raw.meta !== 'object' || Array.isArray(raw.meta)) { candidate = null; return; }
+                    if (raw.updatedAt > latestTime) { candidate = next; latestTime = raw.updatedAt; }
+                    try { readNext(index + 1); } catch (error) { finish(error); }
+                  };
+                };
+                try { readNext(0); } catch (error) { finish(error); }
               };
             };
-            readNext(0);
           };
-        };
-      };
-      defaultRequest.onsuccess = onboardingRequest.onsuccess = checkSettings;
-      tx.oncomplete = () => resolve(candidate);
-      tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('读取旧项目模板失败'));
-    }), 'getLegacyPresetCandidate', DB_DOC_TIMEOUT_MS);
-  } finally { db.close(); }
+          defaultRequest.onsuccess = onboardingRequest.onsuccess = checkSettings;
+          transaction.oncomplete = () => finish(null, candidate);
+          transaction.onerror = transaction.onabort = () => finish(transaction.error ?? new Error('读取旧项目模板失败'));
+        } catch (error) { finish(error); }
+      }, error => finish(error));
+    });
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'AbortError')) recordError({ type: 'manual', message: error instanceof Error ? error.message : String(error), context: 'db:getLegacyPresetCandidate' });
+    throw error;
+  }
 }
 
 export async function completeLegacyPresetOnboarding(preset: ProjectPreset | null): Promise<ProjectPreset> {
@@ -671,10 +712,10 @@ export async function saveProjectGroup(group: ProjectGroup): Promise<void> {
   }), 'saveProjectGroup', DB_DOC_TIMEOUT_MS));
 }
 
-export function splitSystemNames(value: string): string[] {
+export function splitSystemNames(value: string, splitWhitespace = true): string[] {
   const seen = new Set<string>();
   return value
-    .split(/[，,、\s]+/)
+    .split(splitWhitespace ? /[，,、\s]+/ : /[，,、\r\n]+/)
     .map((name) => name.trim())
     .filter((name) => {
       const key = name.toLocaleLowerCase();
@@ -697,18 +738,77 @@ export async function createProjectGroupWithSystems(
   const projectPreset: ProjectPreset = { ...DEFAULT_PRESET, categories: cloneCategories(preset.categories), profile: cloneProfile(group.profile ?? preset.profile) };
   const projects = systemNames.map((systemName) => createProjectDocument({ ...group, systemName }, group.id, projectPreset));
   const db = await openDB();
-  return withTimeout(new Promise<ProjectDocument[]>((resolve, reject) => {
-    const tx = db.transaction([PROJECT_GROUPS_STORE_NAME, PROJECTS_STORE_NAME, PROJECT_SUMMARIES_STORE_NAME], 'readwrite');
+  await runGroupWrite(db, 'createProjectGroupWithSystems', (tx, done) => {
     tx.objectStore(PROJECT_GROUPS_STORE_NAME).put(group);
-    const projectsStore = tx.objectStore(PROJECTS_STORE_NAME);
-    const summariesStore = tx.objectStore(PROJECT_SUMMARIES_STORE_NAME);
     projects.forEach((project) => {
-      projectsStore.put(project);
-      summariesStore.put(toProjectSummary(project));
+      tx.objectStore(PROJECTS_STORE_NAME).put(project);
+      tx.objectStore(PROJECT_SUMMARIES_STORE_NAME).put(toProjectSummary(project));
     });
-    tx.oncomplete = () => { db.close(); markReferenceFormSaved(projects); resolve(projects); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
-  }), 'createProjectGroupWithSystems', DB_DOC_TIMEOUT_MS);
+    done();
+  });
+  markReferenceFormSaved(projects);
+  return projects;
+}
+
+async function runGroupWrite(db: IDBDatabase, context: string, write: (tx: IDBTransaction, done: () => void, fail: (error: unknown) => void) => void): Promise<void> {
+  try {
+    await trackWrite(new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([PROJECT_GROUPS_STORE_NAME, PROJECTS_STORE_NAME, PROJECT_SUMMARIES_STORE_NAME], 'readwrite');
+      let failure: unknown;
+      let ready = false;
+      const fail = (error: unknown) => { failure = error; try { tx.abort(); } catch { /* 等待真实事务终态。 */ } };
+      const timer = setTimeout(() => fail(new Error('项目组保存超时，已请求中止，请刷新后核对')), DB_DOC_TIMEOUT_MS);
+      tx.oncomplete = () => { clearTimeout(timer); if (ready) resolve(); else reject(new Error('项目组保存未完成')); };
+      tx.onabort = () => { clearTimeout(timer); reject(failure ?? tx.error ?? new Error('项目组保存已中止')); };
+      try { write(tx, () => { ready = true; }, fail); } catch (error) { fail(error); }
+    }));
+  } catch (error) {
+    recordError({ type: 'manual', message: error instanceof Error ? error.message : String(error), context: `db:${context}` });
+    throw error;
+  } finally { db.close(); }
+}
+
+export async function convertIndependentSystemToGroup(sourceId: string, values: ProjectMeta, expectedUpdatedAt: number, preset: ProjectPreset): Promise<ProjectDocument[]> {
+  if (!sourceId || !Number.isFinite(expectedUpdatedAt) || ['projectCode', 'projectName', 'unitName', 'reportDate', 'systemName'].some(key => typeof values[key as keyof ProjectMeta] !== 'string')) {
+    throw new Error('转组参数无效');
+  }
+  const names = splitSystemNames(values.systemName, false);
+  if (names.length < 2) throw new Error('转组至少需要两个不同的系统名称');
+  const validatedPreset = parsePreset(preset);
+  let projects: ProjectDocument[] = [];
+  const db = await openDB();
+  await runGroupWrite(db, 'convertIndependentSystemToGroup', (tx, done, fail) => {
+    const request = tx.objectStore(PROJECTS_STORE_NAME).get(sourceId);
+    request.onsuccess = () => {
+      try {
+        const source: unknown = request.result;
+        if (!isInspectableProject(source) || source.id !== sourceId || !Array.isArray(source.categories) || !source.meta) throw new Error('原系统不存在或内容无效，请重新加载');
+        if (source.groupId) throw new Error('原系统已属于项目组，请重新加载');
+        if (source.archive) throw new Error(ARCHIVED_READONLY_MESSAGE);
+        if (source.updatedAt !== expectedUpdatedAt) throw new Error('原系统已更新，请重新打开编辑');
+        const summary = tx.objectStore(PROJECT_SUMMARIES_STORE_NAME).get(sourceId);
+        summary.onsuccess = () => {
+          try {
+            if (summary.result?.archive) throw new Error(ARCHIVED_READONLY_MESSAGE);
+            const profile = normalizeProfile(source.profile);
+            if (profile.unitFieldRequired && !values.unitName.trim()) throw new Error(`请填写${profile.unitFieldLabel}`);
+            const meta = normalizeMeta(values);
+            const group = createProjectGroup({ ...meta, profile });
+            const original: ProjectDocument = { ...source, groupId: group.id, meta: { ...meta, systemName: names[0] }, updatedAt: Date.now() };
+            projects = [original, ...names.slice(1).map(systemName => createProjectDocument({ ...meta, systemName }, group.id, { ...validatedPreset, profile }))];
+            tx.objectStore(PROJECT_GROUPS_STORE_NAME).put(group);
+            projects.forEach(project => {
+              tx.objectStore(PROJECTS_STORE_NAME).put(project);
+              tx.objectStore(PROJECT_SUMMARIES_STORE_NAME).put(toProjectSummary(project));
+            });
+            done();
+          } catch (error) { fail(error); }
+        };
+      } catch (error) { fail(error); }
+    };
+  });
+  markReferenceFormSaved(projects);
+  return projects;
 }
 
 export async function createSystemForGroup(group: ProjectGroup, systemName: string, preset?: ProjectPreset): Promise<ProjectDocument> {

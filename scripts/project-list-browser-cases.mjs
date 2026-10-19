@@ -26,6 +26,8 @@ async function back() { await click('返回项目列表'); await until(() => !!d
 const onePixel = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=';
 
 export async function seed() {
+  // 普通列表/导出套件使用已选择通用模板的库；未选择默认的后台扫描由预设套件独立验证。
+  await db.completeLegacyPresetOnboarding(null);
   const base = { projectCode: 'QA', projectName: '', unitName: '测试单位', reportDate: '2026-09-14', createdAt: 1, updatedAt: 1 };
   for (const [id, projectName] of [['multi', '公共资源中心公共服务与产权交易综合管理项目'], ['single', '只有一个系统的项目'], ['empty', '空项目']]) await db.saveProjectGroup({ ...base, id, projectName });
   const records = [['g1', 'multi', '公共资源交易与产权服务综合交易平台'], ['g2', 'multi', '公共资源中心跨部门协同办公系统'], ['s1', 'single', '采购系统'], ['orphan', 'missing', '档案系统'],
@@ -99,14 +101,14 @@ export async function mutations() {
   await tab('independent'); await search('不存在');
   await click('新建项目'); await click('取消', dialog()); assert(document.querySelector('input[type="search"]').value === '不存在', '取消创建不跳转');
   await click('新建项目');
-  let inputs = dialog().querySelectorAll('input'); input(inputs[2], '新增单位'); input(inputs[4], '新增独立系统');
+  let inputs = dialog().querySelectorAll('input:not([type=radio])'); input(inputs[2], '新增单位'); input(inputs[4], '新增独立系统');
   const transaction = IDBDatabase.prototype.transaction;
   IDBDatabase.prototype.transaction = function (names, mode, ...args) { if (mode === 'readwrite') throw new Error('受控保存失败'); return transaction.call(this, names, mode, ...args); };
   try { await click('保存', dialog()); await until(() => document.body.textContent.includes('受控保存失败'), '保存失败反馈'); assert(!!dialog() && document.querySelector('input[type="search"]').value === '不存在', '保存失败不跳转'); }
   finally { IDBDatabase.prototype.transaction = transaction; }
   await click('保存', dialog()); await until(() => !dialog(), '保存单系统');
   await until(() => rows().some(row => row.textContent.includes('新增独立系统')), '创建后清空过滤并定位独立列表');
-  await click('新建项目'); inputs = dialog().querySelectorAll('input'); input(inputs[1], '新增多系统项目'); input(inputs[2], '新增单位'); input(inputs[4], '新增甲系统、新增乙系统');
+  await click('新建项目'); dialog().querySelector('input[type=radio][value=group]').click(); inputs = dialog().querySelectorAll('input:not([type=radio])'); input(inputs[1], '新增多系统项目'); input(inputs[2], '新增单位'); input(inputs[4], '新增甲系统、新增乙系统');
   await click('保存', dialog()); await until(() => !dialog(), '保存多系统');
   await until(() => groups().some(group => group.textContent.includes('新增多系统项目')), '新建多系统定位项目页');
   const createdId = groups().find(group => group.textContent.includes('新增多系统项目')).dataset.groupId;
@@ -210,6 +212,7 @@ export async function batchExport() {
     const originalTransaction = IDBDatabase.prototype.transaction;
     let sourceWrites = 0;
     const projectReads = [];
+    let releaseFirstRead;
     IDBDatabase.prototype.transaction = function (names, mode, ...args) {
       if (mode === 'readwrite' && (Array.isArray(names) ? names : [names]).some(name => ['projects', 'projectSummaries', 'images'].includes(name))) sourceWrites++;
       return originalTransaction.call(this, names, mode, ...args);
@@ -220,22 +223,24 @@ export async function batchExport() {
         projectReads.push(id);
         if (projectReads.length === 1) {
           const descriptor = Object.getOwnPropertyDescriptor(IDBRequest.prototype, 'onsuccess');
-          Object.defineProperty(request, 'onsuccess', { set: callback => descriptor.set.call(request, event => setTimeout(() => callback(event), 300)) });
+          Object.defineProperty(request, 'onsuccess', { set: callback => descriptor.set.call(request, event => { releaseFirstRead = () => { releaseFirstRead = null; callback(event); }; }) });
         }
       }
       return request;
     };
     const exportButton = button('导出选中', groupRow('batch'));
     try {
-      exportButton.click(); exportButton.click(); await pause(60);
+      exportButton.click(); exportButton.click(); await until(() => !!releaseFirstRead, '首个导出读取已到达受控等待点'); await pause(60);
       assert(document.querySelector('[data-batch-status]'), '导出期间有可访问进度');
       assert(projectReads.length === 1, '首个系统读取等待时不并行读取其他系统');
       assert(document.querySelector('input[type="search"]').matches(':disabled') && document.querySelector('nav button').matches(':disabled'), '导出锁定搜索和切页');
       assert(groupRow('batch').querySelector('input').matches(':disabled') && button('删除选中', groupRow('batch')).matches(':disabled') && button('打开', systemRow('batch1')).matches(':disabled'), '导出锁定选择、删除和打开');
+      releaseFirstRead();
       await until(() => downloads.length === 1 && !document.querySelector('[data-batch-status]'), '15 系统一次下载');
       assert(projectReads.length === 15 && new Set(projectReads).size === 15, '每个所选文档仅读取一次');
       assert(sourceWrites === 0, '导出不创建源文档、摘要或图片的写事务');
     } finally {
+      releaseFirstRead?.();
       IDBObjectStore.prototype.get = getForSlowRead;
       IDBDatabase.prototype.transaction = originalTransaction;
     }
@@ -363,7 +368,7 @@ export async function failedLoad() {
 export async function savedButRefreshFailed() {
   await tab('groups'); await search('公共资源');
   const wasExpanded = groupToggle('multi').getAttribute('aria-expanded');
-  await click('新建项目'); const inputs = dialog().querySelectorAll('input');
+  await click('新建项目'); dialog().querySelector('input[type=radio][value=independent]').click(); const inputs = dialog().querySelectorAll('input:not([type=radio])');
   input(inputs[2], '新增单位'); input(inputs[4], '刷新失败仍保存的系统');
   const transaction = IDBDatabase.prototype.transaction;
   IDBDatabase.prototype.transaction = function (names, mode, ...args) {

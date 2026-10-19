@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { BUTTON_DANGER_SOLID, BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_TITLE } from './dialogStyles';
 
 interface ConfirmDialogOptions {
@@ -51,13 +51,47 @@ interface ConfirmDialogProps {
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ options, onCancel, onConfirm }) => {
   const isDanger = options.tone !== 'default';
+  const titleId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>('button')];
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    first?.focus();
+    const focusin = (event: FocusEvent) => {
+      if (event.target instanceof Node && !container.contains(event.target)) first?.focus();
+    };
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || event.defaultPrevented || !first || !last) return;
+      if (!container.contains(document.activeElement) || (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+    };
+    document.addEventListener('focusin', focusin);
+    document.addEventListener('keydown', keydown);
+    return () => {
+      document.removeEventListener('focusin', focusin);
+      document.removeEventListener('keydown', keydown);
+      if (previous?.isConnected && previous.getClientRects().length) previous.focus();
+    };
+  }, []);
 
   return (
     <div
+      ref={containerRef}
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
       className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 px-4"
-      onClick={onCancel}
+      onClick={(event) => { event.stopPropagation(); onCancel(); }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCancel(); }
+      }}
     >
       <div className="w-full max-w-md border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start gap-3 border-b border-slate-200 px-6 py-5">
@@ -73,8 +107,8 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ options, onCancel, onConf
             )}
           </div>
           <div className="min-w-0">
-            <h2 className={DIALOG_TITLE}>{options.title}</h2>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{options.message}</p>
+            <h2 id={titleId} className={DIALOG_TITLE}>{options.title}</h2>
+            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{options.message}</p>
           </div>
         </div>
         <div className="flex justify-end gap-2 px-6 py-4">

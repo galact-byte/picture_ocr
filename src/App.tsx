@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppProvider, useAppContext, useAppState, useDispatch } from './context/AppContext';
-import Toolbar from './components/Toolbar';
-import Sidebar from './components/Sidebar';
+import WorkspaceLayout from './components/WorkspaceLayout';
 import ContentArea from './components/ContentArea';
 import ProjectInfoDialog from './components/ProjectInfoDialog';
 import ValidationDialog from './components/ValidationDialog';
@@ -132,20 +131,18 @@ const AppContent: React.FC<AppContentProps> = ({
   }
 
   return (
-    <div className="h-screen flex bg-slate-100">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Toolbar
-          onBackToProjects={onBackToProjects}
-          onOpenProjectInfo={() => setProjectInfoOpen(true)}
-          onExportWord={handleExportWord}
-          onManageTemplates={() => setTemplateDialogOpen(true)}
-          onSavePreset={handleSavePreset}
-          onOpenLanCollector={lanEnabled ? onOpenLanCollector : undefined}
-          lanSessionRunning={lanSessionRunning}
-        />
+    <>
+      <WorkspaceLayout toolbar={{
+        onBackToProjects,
+        onOpenProjectInfo: () => setProjectInfoOpen(true),
+        onExportWord: handleExportWord,
+        onManageTemplates: () => setTemplateDialogOpen(true),
+        onSavePreset: handleSavePreset,
+        onOpenLanCollector: lanEnabled ? onOpenLanCollector : undefined,
+        lanSessionRunning,
+      }}>
         <ContentArea />
-      </div>
+      </WorkspaceLayout>
       <ProjectInfoDialog
         open={projectInfoOpen}
         onClose={() => setProjectInfoOpen(false)}
@@ -163,7 +160,7 @@ const AppContent: React.FC<AppContentProps> = ({
         onContinue={handleContinueExport}
         onCancel={() => setValidationOpen(false)}
       />
-    </div>
+    </>
   );
 };
 

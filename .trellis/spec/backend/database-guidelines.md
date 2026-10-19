@@ -31,7 +31,7 @@
 ### 2. 接口
 
 - `getDefaultPreset(): Promise<ProjectPreset>`、`saveDefaultPreset(preset): Promise<void>`。
-- `getLegacyPresetCandidate(): Promise<ProjectPreset | null>`：仅在点击新建后检测；已有默认或引导选择时返回 null。顺序只读核对全部系统、摘要主键与固定旧等保分类标识/类型及配置，混合或无法确认时不提供继承。
+- `getLegacyPresetCandidate(signal?: AbortSignal): Promise<ProjectPreset | null>`：摘要首屏后延后核对，新建可复用在途检查；已有默认或引导选择时返回 null。顺序只读核对全部系统及摘要主键，`isAssessmentCategories(value: unknown)` 要求八个合法核心分类 ID/type，允许改名、附加分类、检查项与合法 profile 差异。全部确认后按 updatedAt 倒序、ID 升序提取最近模板；混合/不确定库不提供继承，坏读取 reject，取消/超时关闭连接，迟到 open 也须关闭。
 - `completeLegacyPresetOnboarding(preset: ProjectPreset | null): Promise<ProjectPreset>`：null 表示继续通用；同一 settings 事务内重查现有默认与选择，保护其他窗口已经保存的默认，保存继承配置和选择记录后以实际 complete/abort 结算。取消不写记录。
 - `createProjectDocument(meta?, groupId?, preset?)` 是同步工厂；UI 必须先读取预设并传入同一快照。
 - `createSystemForGroup(group, systemName, preset?)` 使用组的 profile；未传 preset 时异步读取默认分类模板。
@@ -63,6 +63,31 @@
 ### 7. 反例
 
 错误：预设读取 catch 后使用 DEFAULT_PRESET 继续创建；组内新建只调用无 preset 的同步工厂。正确：加载失败阻止创建并允许重试；提交使用表单已加载的快照，组内配置从组获取。
+
+## 显式创建类型与独立系统转组
+
+### 1. 范围与触发
+单系统/系统组创建，以及无 groupId 的系统在编辑时以显式分隔符追加多个名称；不做后台拆名、合并或拆组，无 schema/版本升级。
+
+### 2. 接口
+- `splitSystemNames(value: string, splitWhitespace = true): string[]`：创建维持旧空白分隔兼容；独立编辑传 false，只按中英文逗号、顿号和换行拆分，普通名称中的空格保留。
+- `convertIndependentSystemToGroup(sourceId: string, values: ProjectMeta, expectedUpdatedAt: number, preset: ProjectPreset): Promise<ProjectDocument[]>`：返回首项原系统及新增空白成员。
+- `createProjectGroupWithSystems` 与转组共用 `runGroupWrite`，通过 trackWrite 追踪，并在真实 complete/abort 之后结算；超时只请求 abort，不能提前放行重试。
+
+### 3. 数据契约
+来源必须在 projects/projectGroups/projectSummaries 同一 readwrite 事务内现读；原 ID、createdAt、profile、categories、assets/检查项/图片引用保留，图片 store 和 `${projectId}:${imageId}` 键不移动。新成员用表单已加载的分类模板和原系统 profile，assets 为空；组与全部摘要一并写入。UI 的 creationType 不入库，真实归属仍看 groupId，单成员组也须建组。
+
+### 4. 校验与错误矩阵
+缺失/坏结构/已归档/已有组/updatedAt 不匹配、无两个不同名称或单位必填未满足均拒绝；put 抛错、实际 abort/受控超时中止全部回滚。并发同源提交只能成功一次。提交后刷新失败只重读定位，不重复创建。
+
+### 5. 正常与边界
+“财务 系统”只改名；“财务系统、审计系统”转组，首名仍为原系统。组选中时只有一个名称也建真实组；单系统输入多个名称则保留输入并提示改选组。
+
+### 6. 必须验证
+`node scripts/verify-project-list-ui.mjs --system-groups` 在隔离 Web/Electron 覆盖全部证据/图片字节、失败与并发、重载、原生 radio/Tab 闭环、连续引导→单成员组→带证据转组→采集快照→ZIP/加密包导出导入→图片解码→灰色示例。另跑 pending-writes、image-store、merge-import、archive-model/flow 与列表原回归。
+
+### 7. 反例
+错误：只保存含逗号的名称、删原系统再创建、在事务外先读后改或按包装 Promise 超时认定未提交。正确：显式意图、现读现改、保留原键、同事务摘要及真实终态结算；原单系统包仍不携带组归属。
 
 ## 写路径不变量
 

@@ -1,0 +1,31 @@
+{
+  "id": "preset-group-experience",
+  "name": "preset-group-experience",
+  "title": "等保预设与系统分组使用体验修正",
+  "description": "统筹旧等保项目引导回归、单系统与系统组创建和转换、等保资产名称预设，分项规划并执行最终集成验收",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "galact",
+  "assignee": "galact",
+  "createdAt": "2026-10-19",
+  "completedAt": null,
+  "branch": "fix/preset-group-experience",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-19-legacy-preset-followup",
+    "10-19-explicit-system-group",
+    "10-19-assessment-asset-names",
+    "10-19-workspace-narrow-layout"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

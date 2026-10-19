@@ -379,7 +379,7 @@ const ContentArea: React.FC = () => {
 
   if (!activeAssetId || !activeAsset) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px]">
+      <main tabIndex={-1} aria-label="证据工作区" className="flex min-h-0 min-w-0 flex-1 items-center justify-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px]">
         <div className="text-center text-gray-400">
           <svg className="mx-auto mb-4 h-16 w-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -417,7 +417,7 @@ const ContentArea: React.FC = () => {
     : activeAsset.items;
 
   return (
-    <main ref={mainContentRef} className="flex-1 overflow-y-auto bg-slate-100 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px]">
+    <main ref={mainContentRef} tabIndex={-1} aria-label="证据工作区" className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-slate-100 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] [overflow-wrap:anywhere]">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8">
         <div className="mb-8">
           <h2 className="text-4xl font-extrabold tracking-tight text-slate-950">{activeAsset.name}</h2>
@@ -467,7 +467,7 @@ const ContentArea: React.FC = () => {
                   if (event.key === 'Enter') handleAddItem();
                 }}
                 placeholder="添加自定义检查项..."
-                className="min-h-11 min-w-0 flex-1 border border-gray-300 px-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="min-h-11 min-w-0 flex-1 basis-full border border-gray-300 px-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:basis-0"
               />
               <button
                 type="button"

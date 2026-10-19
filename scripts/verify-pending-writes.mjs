@@ -99,6 +99,13 @@ for (const fn of ['commitProjectArchive', 'restoreProjectArchive']) {
   check(`${fn} 经归档事务 helper 计入未完成写入`, /runArchiveTransaction\(/.test(body));
 }
 
+const groupHelper = db.split('async function runGroupWrite')[1]?.split('\nexport ')[0] ?? '';
+check('创建/转组事务 helper 计入未完成写入', /trackWrite\(/.test(groupHelper));
+for (const fn of ['createProjectGroupWithSystems', 'convertIndependentSystemToGroup']) {
+  const body = db.split(`export async function ${fn}`)[1]?.split('\nexport ')[0] ?? '';
+  check(`${fn} 经项目组事务 helper 计入未完成写入`, /await runGroupWrite\(/.test(body));
+}
+
 // ---------- 3) 渲染进程 beforeunload 拦截 ----------
 const guardSource = read('src/utils/pendingWrites.ts') + read('src/main.tsx');
 check('注册 beforeunload 拦截', /addEventListener\('beforeunload'/.test(guardSource));

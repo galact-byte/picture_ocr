@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"仅替换原输入框示例，不增加候选控件或解释文案"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"示例不入数据、不改 reducer/旧资产与项目模板快照"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"逐分类真实 Sidebar、空输入及双端验证"}
+{"file":".trellis/tasks/10-19-preset-group-experience/research/current-behavior.md","reason":"用户明确只要灰色示例，候选交互建议已撤回"}

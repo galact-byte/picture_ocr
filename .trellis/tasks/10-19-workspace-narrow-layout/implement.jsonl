@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"沿用 Tailwind、现有功能色、语义控件与对话框规范"}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"媒体查询、焦点与 inert 的生命周期清理"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"工作台瞬时状态不落库，保持原保存和采集边界"}
+{"file":".trellis/tasks/10-19-workspace-narrow-layout/design.md","reason":"用户追加的窄屏布局边界与单侧栏实例契约"}

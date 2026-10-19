@@ -1,5 +1,87 @@
 # 修改记录 — Picture OCR
 
+## 2026-10-19 — 窄屏工作台布局与分类导航（R5）
+
+### 背景与目标
+- 用户追加要求修复 375px 工作台挤压。窗口小于 1024px 时通过“分类导航”打开侧栏，选资产后返回正文；宽屏仍常驻侧栏并可拖动或键盘调宽。
+- 顶部工具按钮整组换行，不拆字、不压缩；同一 Sidebar 跨断点保留草稿和宽度偏好，不把未确认重命名失焦提交。
+
+### 文件与实现
+| 操作 | 路径 | 说明 |
+| --- | --- | --- |
+| 新增/修改 | `src/components/WorkspaceLayout.tsx`、`src/App.tsx` | 局部装配与导航焦点/inert 生命周期，不迁移保存与 LAN 职责。 |
+| 修改 | `src/components/{Sidebar,Toolbar,ContentArea,ConfirmDialog}.tsx` | 导航/换行、正文约束、内层确认独立键盘焦点和长英文消息折行、标题命名及重命名输入收缩。 |
+| 新增/修改 | `scripts/workspace-browser-cases.mjs`、`scripts/verify-project-list-ui.mjs`、`scripts/system-group-browser-cases.mjs` | 五档宽度、跨断点组合、真实按键、图片字节与 DOCX；前台测试通过 Focus Emulation 避免隐藏窗口 rAF 停止，不修改生产后台行为。 |
+| 修改 | `README.md`、前端规范、本轮父子任务记录 | 用户入口、可执行边界、审查与验收证据。 |
+
+### 验证与限制
+- 后续复查修复模板删除确认点击遮罩同时关闭外层窗口的问题：仅在 ConfirmDialog 遮罩阻止点击冒泡。新增双端 375/1440px 遮罩、取消、Escape、确认删除回归，窗口/草稿保留且取消不删除；新鲜构建、工作台 76 / 列表 43 / 预设 52 个报告组通过（171 组），详见任务 `recheck.md`。
+- 追加修复前整套：构建、双端工作台 60 / 分组 32 / 预设 52 / 列表 43 / 图片 4，共 191 个 UI 报告组通过；不是 191 个独立测试。
+- 320/375/768/1024/1440px 及有限高度通过；375px 正文由 136px 恢复至完整视口。跨断点新增/重命名草稿、内外模态正反 Tab、焦点/inert 恢复、长英文确认框与重命名编辑态均有实际断言，已查看最终正文/导航及确认框截图。
+- 检查项交互与 Pointer 拖拽、双端 LAN 生命周期、手机采集契约、pending-writes 35/35、PWA 与 diff 检查通过。详细命令和 RED/最终日志见 `.trellis/tasks/10-19-workspace-narrow-layout/verification.md`。
+- 无 DB/schema、保存策略、采集路由、导出格式或新依赖变更；未操作真实用户库，未验证真实手机/系统相机、Wi-Fi 或大库上限。Vite 约 614 kB 主 chunk 提醒保留。
+- 实现与验收完成，等待一次性本地提交确认；不推送/发布，原 workflow.md 修改保留不提交。
+
+## 2026-10-19 — 等保引导、显式系统类型与原子转组联合验收
+
+### 背景与目标
+- 全等保旧库进入列表后即可发现引导，确认沿用最近模板；合法报告配置和自定义检查项差异不再漏判，不覆盖显式默认。
+- 新建可选单系统/系统组，默认跟随当前列表；一成员也可建真实组。独立系统编辑中用逗号、顿号或换行追加多个名称会真实转组，普通名称内空格不拆分。
+- 等保八分类只替换空名称框中的灰色示例，不增加选择控件、自动填入或示例资产。
+
+### 影响与兼容性
+- DB_VERSION、预设 version、ZIP/加密包及图片键不变，无新依赖。转组在同一事务现读源、写组/成员/摘要，保留原 ID/profile/分类/检查项/图片引用及字节；新增成员空白。超时按实际事务终态结算，并发提交只成功一次。
+- 保存成功后刷新失败只重读定位；回退代码不撤销已选默认或自动拆分已建组。原单系统包仍不携带组归属。
+
+### 文件与实现
+| 操作 | 路径 | 说明 |
+| --- | --- | --- |
+| 修改 | `src/utils/preset.ts`、`src/utils/db.ts` | 公共等保判据、顺序候选核对、最近模板、保留原 ID 的原子转组与写入追踪。 |
+| 修改 | `src/components/ProjectList.tsx`、`src/components/project-list/ProjectGroupDialog.tsx`、`src/components/Sidebar.tsx` | 引导生命周期、显式类型/校验/导航、radio 焦点闭环和分类 placeholder。 |
+| 新增/修改 | `scripts/system-group-browser-cases.mjs`、`scripts/verify-project-list-ui.mjs` 及相关预设/列表/pending-writes 脚本 | 连续同库验收、事务故障/并发、三档截图和真实按键。批量导出测试用显式读门闩替代固定时延，原读取/下载/零写入断言不变。 |
+| 修改 | `README.md`、`.trellis/spec/{frontend,backend}/`、本轮任务记录 | 用户操作、可执行契约、审查修正与验收证据。 |
+
+### 验证
+- `npm run build`、`node scripts/verify-presets.mjs`（15 个）、`node scripts/verify-project-list-views.mjs` 通过。
+- 双端 UI：`--system-groups` 32 个、`--presets` 52 个、普通列表 43 个报告组通过，共 127 个报告组，非单一用例数量。
+- 联合流程实际覆盖全等保库引导、选择快照、单成员组、带两图原系统转组、该组采集快照、该系统 ZIP/加密包导出导入、逐图字节与恢复图解码、同一系统灰色示例。
+- pending-writes 35/35；image-store、merge-import、evidence-package、archive-model（100 个）、archive-flow（110 个）、lan-group-snapshot、lan-mobile-picker、pwa-build 与 `git diff --check` 通过。
+- 一次独立审查指出 radio 反向 Tab 与联合验收缺口，均已定点复现/补齐并在双端重验。详细记录见 `.trellis/tasks/10-19-preset-group-experience/verification.md`；运行时日志和截图留在忽略的 `.trellis/.runtime/`。
+
+### 已知限制与后续
+- 只用合成隔离库，未检查真实用户 Web 构建、缓存或数据库，也未测大型真实库容量与真实手机/Wi-Fi。
+- 原 375px 工作台挤压已按用户追加的 R5 修复并完成五档双端验证，见上方 R5 记录。
+- Vite 主 chunk 阈值提醒和 pending-writes 临时模块类型警告仍存在。无统一 npm test/lint，不宣称全仓所有功能通过。
+- 代码、规范和文档已准备，等待工作流要求的一次性本地提交确认；尚未提交/归档，不推送或发布。下方 R1 单项记录为此前阶段状态，以本节联合结果为准。
+
+## 2026-10-19 — 旧等保预设引导回归修正（R1）
+
+### 背景与目标
+- 项目列表摘要首屏之后独立延后检查；全部系统均有合法等保核心分类、且尚无显式默认或引导选择时，提供“沿用最近等保模板”。允许检查项、分类名、附加分类及报告配置不同，默认来源按修改时间倒序、ID 升序确定。
+- 引导选择只影响未来新建，不改旧项目、单位值、资产或图片。没有新建意图时选择后直接关闭；抢先新建等待同一轮检查，其他弹窗关闭后再呈现引导。
+
+### 影响与兼容性
+- 数据库版本、预设 JSON 和导出格式均不变。保留 settings 原子写入和跨连接默认保护；检查可取消，超时/取消后的迟到连接关闭。回退代码不会撤销用户已经保存的默认。
+
+### 文件与实现
+| 操作 | 路径 | 说明 |
+|---|---|---|
+| 修改 | `src/utils/preset.ts`、`src/utils/db.ts` | 公开 `isAssessmentCategories`；合法模板投影、逐文档核对、稳定来源、主键/损坏结构拒绝及资源清理。 |
+| 修改 | `src/components/ProjectList.tsx`、`src/components/project-list/ProjectGroupDialog.tsx` | 首屏后触发、共用在途检查、取消/代际保护、弹窗协调及准确来源文案。 |
+| 修改 | `scripts/verify-presets.mjs`、`scripts/preset-browser-cases.mjs`、`scripts/verify-project-list-ui.mjs`、`scripts/project-list-browser-cases.mjs` | RED/GREEN、真实原生 IDB 故障与生命周期、双端截图/键盘回归；普通列表夹具显式选择通用，保留原导出读取次数断言。 |
+
+### 验证
+- `node scripts/verify-presets.mjs`：14 个检查通过。
+- `npm run build`：TypeScript、生产构建和 Service Worker 生成通过。
+- `node scripts/verify-project-list-ui.mjs --presets`：Web/Electron 共 52 个报告组通过；含 375/768/1440px、真实 Tab/Shift+Tab/Escape/Enter、只读首屏、单个在途文档、取消、读写失败/实际事务超时回滚和并发默认保护。
+- `node scripts/verify-project-list-views.mjs`、`node scripts/verify-project-list-ui.mjs`（双端 43 个报告组）、`npm run verify:pending-writes`（32/32）、`npm run verify:pwa-build`、`npm run verify:lan-mobile-picker` 和 `git diff --check` 通过。
+- 日志位于 `.trellis/.runtime/preset-group-experience/final-*.log`；双端三档引导截图位于 `.trellis/.runtime/preset-qa/`，已核对实际文字及按钮布局。
+
+### 已知限制与后续
+- 只使用合成隔离库；未读取真实用户库，也未测大型真实库延迟/内存上限。含内联图片的旧文档仍有单条克隆成本；顺序扫描不代表零图片字节分配。
+- 构建主 chunk 604.29 kB 仍有 500 kB 阈值警告；pending-writes 脚本有 Node 临时文件模块类型警告，不影响本轮通过。
+- 本节为 R1 实现阶段记录；最终其他子项、独立审查和规范同步结果见上方联合验收记录。
+
 ## 2026-10-14 — v0.11.3 批量备份、旧模板引导与图片状态
 
 ### 行为与兼容性

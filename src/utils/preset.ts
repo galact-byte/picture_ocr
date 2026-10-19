@@ -111,15 +111,20 @@ const LEGACY_CATEGORY_TYPES = new Map([
   ['cat-management', 'freestyle'], ['cat-other', 'checklist'],
 ]);
 
+export function isAssessmentCategories(value: unknown): boolean {
+  try {
+    const { categories } = parsePreset({ version: 1, name: '等保模板', categories: value, profile: GENERIC_PROFILE });
+    return [...LEGACY_CATEGORY_TYPES].every(([id, type]) => categories.some(category => category.id === id && category.type === type));
+  } catch { return false; }
+}
+
 export function legacyPresetFromDocument(value: unknown): ProjectPreset | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
   try {
     const profile = raw.profile === undefined ? LEGACY_PROFILE : parseProfile(raw.profile);
-    if (JSON.stringify(profile) !== JSON.stringify(LEGACY_PROFILE)) return null;
     const preset = parsePreset({ version: 1, name: '旧项目等保模板', categories: raw.categories, profile });
-    if (preset.categories.length !== LEGACY_CATEGORY_TYPES.size
-      || preset.categories.some(category => LEGACY_CATEGORY_TYPES.get(category.id) !== category.type)) return null;
+    if (!isAssessmentCategories(preset.categories)) return null;
     return preset;
   } catch { return null; }
 }

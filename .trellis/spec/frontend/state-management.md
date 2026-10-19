@@ -64,6 +64,15 @@ dispatch({ type: 'REORDER_ITEMS', payload: { assetId: asset.id, itemIds } });
 6. **验证**：`node scripts/verify-project-list-views.mjs` 检查分类、项目/系统搜索、首次与全部收起、无效 ID 修剪、选择交集和不可变性；`npm run build` 后运行 `node scripts/verify-project-list-ui.mjs` 检查隔离双端展开、返回、选择边界、新建/添加、保存/刷新失败、导入导出及采集。
 7. **反例**：错误是用展开集合为空判断首次加载，或直接用搜索裁剪后的系统发起组级采集；正确是以 null 区分初始化，保留空集合，以及从未裁剪 summary 生成组级采集范围。
 
+## 创建类型、旧库引导与资产示例
+
+- `ProjectGroupDialogValues.creationType` 仅是 UI 提交意图：`independent | group`，默认跟随打开时的列表，异步预设返回不得重置用户选择或输入。单系统多名称须校验，不静默按数量猜类型；独立编辑仅按显式标点/换行拆名，原组成员编辑不再造组。
+- 进入列表先完成轻量摘要显示，再延后调用可取消的 `getLegacyPresetCandidate(signal)`；主动新建复用同一在途检查，不并行扫描完整库。后台失败明确反馈，新建能重试；取消/卸载拒绝旧代际结果。候选弹窗避让其他模态，取消不写完成标记，确认设置事务完成后才关闭。
+- 来源提示须说明“最近修改的等保模板”，不能声称全库模板文本相同；合法性使用公共 `isAssessmentCategories`，不按标题/profile 文本或完整检查项 JSON 相等认定。
+- 创建弹窗的 radio 同名组选中项才是正常 Tab 停靠点。初始 focus 和正反 Tab 闭环使用同一个可聚焦集合；组选中时 Shift+Tab 不能跑到背景的“更多”，保存 Tab 须回当前选中类型。字段错误通过 label/htmlFor、aria-invalid/aria-describedby 和 alert 关联。
+- Sidebar 仅为当前项目的八个等保分类提供 placeholder：机房/交换机/防火墙/服务器/数据库/应用系统/管理制度/资产，均带 `xx`。改名按稳定分类 ID/type 识别；通用/未知分类沿用原回退。切全局默认不改变当前项目示例；示例不进 input.value、reducer 或资产数据，不增加候选控件和说明小字。
+- 端到端入口为 `node scripts/verify-project-list-ui.mjs --system-groups`，包含连续同库场景、取消/失焦/空 Enter 不创建、实际名称创建及 375/768/1440px。事务签名与保护见 [数据库规范](../backend/database-guidelines.md#显式创建类型与独立系统转组)。
+
 ## 批量数据包导出契约
 
 ### 1. 范围
@@ -168,6 +177,10 @@ dispatch({ type: 'REORDER_ITEMS', payload: { assetId: asset.id, itemIds } });
 - **占用统计**：`storageStats.computeStorageStats` 只读摘要 + 游标累加，按 `updatedAt`、归档状态与 `countProjectImages` 条数校验 localStorage 缓存，任一变化即重算（归档/恢复不改 `updatedAt`，靠归档状态与条数失效）；已删除系统的缓存在下次统计时清理。
 - **持久存储**：`main.tsx` 启动时 `requestPersistence()`，存储设置用 `getPersistenceState()` 只查询不重复申请。
 - **验证**：`verify:storage-reminder`、`verify:storage-stats`、`verify-lan-group-snapshot.mjs`（已归档排除），界面双端 `npm run build` 后 `verify:archive-ui`。
+
+## 工作台响应式 UI 状态
+
+`WorkspaceLayout` 独立持有媒体查询、导航开关与焦点/inert 生命周期；只包装原工具栏回调，不迁移 AppContent 的 LAN/保存职责。单 Sidebar 实例跨断点保留草稿和 `sidebar-width`，新增或重命名的未确认输入不得因切宽度被 blur 自动提交。具体布局、内层确认独立焦点和回归命令见 [组件规范](./component-guidelines.md#工作台窄屏布局与模态生命周期)。
 
 ## 局部与派生状态
 

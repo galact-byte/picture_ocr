@@ -2,6 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppState, useDispatch } from '../context/AppContext';
 import { getAssetsForCategory } from '../context/appReducer';
 import { useConfirmDialog } from './ConfirmDialog';
+import { isAssessmentCategories } from '../utils/preset';
+
+const ASSESSMENT_ASSET_EXAMPLES: Record<string, string> = {
+  'cat-physical': 'xx机房', 'cat-network': 'xx交换机', 'cat-security': 'xx防火墙',
+  'cat-host': 'xx服务器', 'cat-system-mgmt': 'xx数据库', 'cat-app': 'xx应用系统',
+  'cat-management': 'xx管理制度', 'cat-other': 'xx资产',
+};
 
 const SIDEBAR_WIDTH_KEY = 'sidebar-width';
 const SIDEBAR_DEFAULT_WIDTH = 288;
@@ -57,8 +64,15 @@ function renderCategoryIcon(categoryId: string): React.ReactNode {
   return <path {...commonProps} d="M4 6h16v12H4zM8 10h8m-8 4h5" />;
 }
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  compact?: boolean;
+  onClose?: () => void;
+  onSelectAsset?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAsset }) => {
   const { categories, assets, activeCategoryId, activeAssetId } = useAppState();
+  const assessmentCategories = isAssessmentCategories(categories);
   const dispatch = useDispatch();
   const [renamingAssetId, setRenamingAssetId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -75,6 +89,10 @@ const Sidebar: React.FC = () => {
   const sidebarWidthRef = useRef(sidebarWidth);
   const resizeSessionRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
   const { confirm, dialog } = useConfirmDialog();
+
+  useEffect(() => {
+    if (compact) { resizeSessionRef.current = null; setIsResizing(false); }
+  }, [compact]);
 
   // Ensure active category is always expanded without updating state during render.
   useEffect(() => {
@@ -223,7 +241,7 @@ const Sidebar: React.FC = () => {
   return (
     <aside
       className={`relative shrink-0 border-r border-slate-800 bg-slate-900 flex h-full text-slate-300 shadow-sm ${isResizing ? 'select-none' : ''}`}
-      style={{ width: sidebarWidth }}
+      style={{ width: compact ? '100%' : sidebarWidth }}
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         <div className="flex items-center gap-3 border-b border-slate-800 px-6 py-5">
@@ -237,6 +255,9 @@ const Sidebar: React.FC = () => {
           <p className="text-sm font-bold text-white">Evidence Pro</p>
           <p className="text-xs text-slate-500">证据分类导航</p>
         </div>
+        {compact && <button type="button" onClick={onClose} aria-label="关闭分类导航" className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center text-slate-300 hover:text-white">
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>}
       </div>
       <div className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-slate-500">
         <span>分类导航</span>
@@ -273,7 +294,7 @@ const Sidebar: React.FC = () => {
                 >
                   {renderCategoryIcon(cat.id)}
                 </svg>
-                <button type="button" onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }} className="min-h-11 min-w-0 truncate text-left font-medium" title={cat.name}>{cat.name}</button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }} className="min-h-11 min-w-11 truncate text-left font-medium" title={cat.name}>{cat.name}</button>
                 {catAssets.length > 0 && (
                   <span className="text-xs text-slate-300 bg-slate-800 rounded-[2px] px-2 py-0.5">
                     {catAssets.length}
@@ -290,7 +311,7 @@ const Sidebar: React.FC = () => {
                   setAddingToCategoryId(isAdding ? null : cat.id);
                   setNewAssetName('');
                 }}
-                className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-blue-300 transition-colors flex-shrink-0"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded p-1 text-slate-500 transition-colors hover:bg-slate-800 hover:text-blue-300 lg:min-h-0 lg:min-w-0"
                 title={isFreestyle ? '添加材料' : '添加资产'}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,7 +345,9 @@ const Sidebar: React.FC = () => {
                           setNewAssetName('');
                         }
                       }}
-                      placeholder={isFreestyle ? '材料名称（如：信息安全管理规定）' : '资产名称（如：核心交换机(192.168.1.1)）'}
+                      placeholder={assessmentCategories && ASSESSMENT_ASSET_EXAMPLES[cat.id]
+                        ? `${isFreestyle ? '材料' : '资产'}名称（如：${ASSESSMENT_ASSET_EXAMPLES[cat.id]}）`
+                        : isFreestyle ? '材料名称（如：信息安全管理规定）' : '资产名称（如：核心交换机(192.168.1.1)）'}
                       className="w-full text-sm border border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500 rounded-[2px] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       autoFocus
                     />
@@ -346,6 +369,7 @@ const Sidebar: React.FC = () => {
                     onClick={() => {
                       dispatch({ type: 'SET_ACTIVE_CATEGORY', payload: cat.id });
                       dispatch({ type: 'SET_ACTIVE_ASSET', payload: asset.id });
+                      onSelectAsset?.();
                     }}
                     className={`group relative ml-8 mr-3 my-1 flex cursor-pointer items-center justify-between border-l px-3 py-2 text-sm transition-colors before:absolute before:-left-px before:top-1/2 before:h-px before:w-3
                       ${asset.id === activeAssetId
@@ -363,7 +387,7 @@ const Sidebar: React.FC = () => {
                           if (e.key === 'Enter') handleFinishRename();
                           if (e.key === 'Escape') setRenamingAssetId(null);
                         }}
-                        className="flex-1 text-sm border border-slate-700 bg-slate-950 text-slate-100 rounded-[2px] px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="min-w-0 flex-1 text-sm border border-slate-700 bg-slate-950 text-slate-100 rounded-[2px] px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -379,17 +403,17 @@ const Sidebar: React.FC = () => {
                             renderCategoryIcon(cat.id)
                           )}
                         </svg>
-                        <span className="truncate font-medium" title={asset.name}>{asset.name}</span>
+                        <button type="button" className="min-h-11 min-w-0 truncate text-left font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 lg:min-h-0"><span title={asset.name}>{asset.name}</span></button>
                         {/* Missing required indicator */}
                         {asset.items.filter((i) => i.required && i.images.length === 0).length > 0 && (
                           <span className="text-xs text-red-400 flex-shrink-0" title="有未完成的必填项">●</span>
                         )}
                       </div>
                     )}
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
                       <button
                         onClick={(e) => handleStartRename(asset.id, asset.name, e)}
-                        className="p-1 text-slate-500 hover:text-blue-300"
+                        className="flex min-h-11 min-w-11 items-center justify-center p-1 text-slate-500 hover:text-blue-300 lg:min-h-0 lg:min-w-0"
                         title="重命名"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -398,7 +422,7 @@ const Sidebar: React.FC = () => {
                       </button>
                       <button
                         onClick={(e) => handleRemoveAsset(asset.id, asset.name, e)}
-                        className="p-1 text-slate-500 hover:text-red-400"
+                        className="flex min-h-11 min-w-11 items-center justify-center p-1 text-slate-500 hover:text-red-400 lg:min-h-0 lg:min-w-0"
                         title="删除"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -418,6 +442,7 @@ const Sidebar: React.FC = () => {
       <button
         type="button"
         aria-label="拖动调整侧栏宽度"
+        disabled={compact}
         aria-valuemin={SIDEBAR_MIN_WIDTH}
         aria-valuemax={SIDEBAR_MAX_WIDTH}
         aria-valuenow={sidebarWidth}
@@ -427,7 +452,7 @@ const Sidebar: React.FC = () => {
         onPointerCancel={handleResizePointerUp}
         onLostPointerCapture={() => stopResizing()}
         onKeyDown={handleResizeKeyDown}
-        className="group/resize absolute inset-y-0 right-0 z-10 w-3 translate-x-1/2 cursor-col-resize touch-none border-0 bg-transparent p-0 focus:outline-none"
+        className="group/resize absolute inset-y-0 right-0 z-10 hidden w-3 translate-x-1/2 cursor-col-resize touch-none border-0 bg-transparent p-0 focus:outline-none lg:block"
       >
         <span
           className={`pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 ${isResizing ? 'bg-blue-400' : 'bg-transparent group-hover/resize:bg-blue-400 group-focus-visible/resize:bg-blue-400'}`}

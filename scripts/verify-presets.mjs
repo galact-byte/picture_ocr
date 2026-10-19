@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { build } from 'esbuild';
 const bundle = await build({ stdin: { contents: `export * from './src/utils/db'; export * from './src/context/appReducer'; export * from './src/utils/preset'; export { buildReportFileName } from './src/utils/wordExport';`, resolveDir: process.cwd() }, bundle: true, loader: { '.png': 'dataurl' }, write: false, format: 'esm', platform: 'node' });
 const api = await import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 let failed = 0;
 function test(name, fn) { try { fn(); console.log('PASS', name); } catch(e) { failed++; console.error('FAIL', name, e.message); } }
 const preset = { version: 1, name: '巡检', categories: [{ id: 'room', name: '场所', type: 'checklist', order: 1, defaultItems: [{ id: 'photo', label: '照片', required: false }] }], profile: { reportTitle: '巡检报告', exportFilePrefix: '巡检', unitFieldLabel: '客户', unitFieldRequired: false } };
+test('编辑追加名称不以普通空格拆分，显式分隔去重且保留创建兼容', () => {
+  assert.deepEqual(api.splitSystemNames('原 系统，新增、 新增\n第三个', false), ['原 系统','新增','第三个']);
+  assert.deepEqual(api.splitSystemNames('甲 乙，丙'), ['甲','乙','丙']);
+  assert.deepEqual(api.splitSystemNames(' 、 ', false), []);
+});
 test('全新项目无示例资产且单位可选', () => { const d=api.createProjectDocument(); assert.equal(d.assets.length,0); assert.equal(d.profile?.unitFieldRequired,false); });
 test('新项目采用传入预设且快照深拷贝', () => { const p=structuredClone(preset); const d=api.createProjectDocument({},null,p); p.categories[0].defaultItems[0].label='改变'; p.profile.reportTitle='改变'; assert.equal(d.categories[0].defaultItems[0].label,'照片'); assert.equal(d.profile.reportTitle,'巡检报告'); });
 test('旧项目固定必填且明确空分类不回填', () => {const d=api.normalizeProjectDocument({categories:[],assets:[]}); assert.equal(d.profile?.unitFieldRequired,true); assert.equal(d.categories.length,0);});
@@ -28,6 +34,26 @@ test('识别旧等保模板只提取分类、检查项与兼容配置', () => {
 });
 test('仅单位必填、通用模板、未知或损坏项目不识别为旧等保', () => {
   assert.equal(typeof api.legacyPresetFromDocument,'function');
-  for(const doc of [null,{},legacyDocument.categories,{categories:[]},{categories:preset.categories,profile:api.LEGACY_PROFILE},{...legacyDocument,profile:api.GENERIC_PROFILE},{...legacyDocument,categories:legacyCategories.slice(1)},{...legacyDocument,categories:legacyCategories.map((c,i)=>i===0?{...c,type:'freestyle'}:c)},{...legacyDocument,categories:legacyCategories.map((c,i)=>i===0?{...c,defaultItems:null}:c)}]) assert.equal(api.legacyPresetFromDocument(doc),null);
+  for(const doc of [null,{},legacyDocument.categories,{categories:[]},{categories:preset.categories,profile:api.LEGACY_PROFILE},{...legacyDocument,profile:{...api.GENERIC_PROFILE,unitFieldRequired:'false'}},{...legacyDocument,categories:legacyCategories.slice(1)},{...legacyDocument,categories:legacyCategories.map((c,i)=>i===0?{...c,type:'freestyle'}:c)},{...legacyDocument,categories:legacyCategories.map((c,i)=>i===0?{...c,defaultItems:null}:c)}]) assert.equal(api.legacyPresetFromDocument(doc),null);
+});
+const bundled = JSON.parse(readFileSync('presets/dengbao.json','utf8'));
+test('自带等保与合法自定义报告配置均识别，保留模板快照', () => {
+  for (const profile of [bundled.profile, api.LEGACY_PROFILE, api.GENERIC_PROFILE, undefined]) {
+    const result=api.legacyPresetFromDocument({...legacyDocument,profile});
+    assert(result,'合法报告配置不应改变等保分类判定');
+    assert.deepEqual(result.profile,profile ?? api.LEGACY_PROFILE);
+  }
+});
+test('等保允许附加分类、改名与不同检查项', () => {
+  const categories=structuredClone(legacyCategories);
+  categories[0].name='自定义机房'; categories[0].defaultItems=[{id:'custom',label:'自定义检查',required:false}];
+  categories.push({id:'extra',name:'附加分类',type:'freestyle',order:9,defaultItems:[]});
+  const result=api.legacyPresetFromDocument({...legacyDocument,categories});
+  assert(result); assert.deepEqual(result.categories,categories);
+});
+test('公开等保分类判据与模板投影一致，非法分类不得命中', () => {
+  assert.equal(typeof api.isAssessmentCategories,'function');
+  assert.equal(api.isAssessmentCategories(bundled.categories),true);
+  for (const categories of [null,[],preset.categories,legacyCategories.slice(1),[...legacyCategories,legacyCategories[0]],legacyCategories.map((c,i)=>i===0?{...c,type:'freestyle'}:c)]) assert.equal(api.isAssessmentCategories(categories),false);
 });
 process.exitCode=failed?1:0;

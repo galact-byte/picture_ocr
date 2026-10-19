@@ -35,6 +35,33 @@
 - 新增仅有图标或关闭符号的按钮必须有中文 `aria-label`，输入错误状态通过 `aria-invalid` 暴露，见 `src/components/project-list/NewProjectDialog.tsx`。历史 `ImageViewer.tsx` 的图标按钮仅有 `title`，不应复制；应在后续触及该组件时补齐。
 - 使用语义化 `button`、`label`、`input`；移动端及对话框中的按钮通常写明 `type="button"`，参见 `src/components/LanMobileCollector.tsx` 和 `LanCollectorDialog.tsx`。项目列表及早期组件存在省略该属性的历史写法；新增表单内按钮应显式写明，且保留禁用状态。
 
+## 工作台窄屏布局与模态生命周期
+
+### 1. 范围
+仅 `#/project/:id` 工作台，由 `WorkspaceLayout` 装配 Sidebar/Toolbar/ContentArea。`#/mobile` 与 LAN 采集路由不改，数据与保存逻辑仍归 Context。
+
+### 2. 接口
+- `WorkspaceLayoutProps = { toolbar: Omit<ToolbarProps, 'onOpenNavigation' | 'navigationOpen'>; children: React.ReactNode }`。
+- `SidebarProps` 可选 `compact: boolean`、`onClose: () => void`、`onSelectAsset: () => void`；Toolbar 可选 `onOpenNavigation` 与 `navigationOpen`，只表达瞬时 UI 意图。
+
+### 3. 契约
+- 1024px 为常驻/导航面板边界；全程只有一个 Sidebar 实例，窄屏不改 `sidebar-width`。面板打开时背景 inert，选择资产后聚焦正文，普通关闭恢复入口。
+- 媒体查询和可见状态同批次更新；侧栏仍有编辑/确认焦点时，缩窄保留面板与焦点，扩大不强制聚焦正文。不能先用 CSS 隐藏正在编辑的输入框，再依赖 effect 修复；浏览器会先触发 blur 并提交草稿。
+- 工具栏整组换行，按钮不压缩/拆字；窄屏导航控件至少 44px，主内容 min-width/min-height 正确并自行纵向滚动，长名称折行；不靠全局裁切掩盖横向溢出。
+- ConfirmDialog 独立初始聚焦取消、约束 Tab/focusin、处理 Escape 并恢复触发焦点；外层导航遇内层 dialog 不接管按键。内层跨断点不能依赖外层已被清理的焦点监听。确认框用 aria-labelledby 关联标题，消息使用 overflow-wrap:anywhere 处理无空格长名称；侧栏重命名 flex 输入显式 min-w-0，320px 下也应保留操作按钮。
+
+### 4. 边界矩阵
+空系统仍可打开导航；关闭/卸载解除 inert 和监听；跨断点保留新增/重命名草稿、不触发失焦提交；内层确认取消不关闭导航；ConfirmDialog 遮罩点击须 stopPropagation 后再取消，避免冒泡到 TemplateDialog 等外层遮罩而关闭两层。`--workspace` 在双端 375/1440px 覆盖遮罩、取消、Escape 和确认删除，验证外层窗口/草稿保留、取消不删条目且恢复触发焦点、确认只删除目标项；拖动调宽与键盘调宽仅宽屏可用。
+
+### 5. 正常与异常例
+375px 正文占满视口，导航展开可选原资产和图片；1440px 保持常驻与原宽度。重命名尚未确认时扩大窗口，输入仍在且库内名称不变；删除确认跨宽度仍只能在确认框内 Tab，取消后保留原资产。
+
+### 6. 验证
+`npm run build` 后 `node scripts/verify-project-list-ui.mjs --workspace`：原生隔离 Web/Electron，320/375/768/1024/1440px、有限高度、长名称、无横向溢出、真实 Enter/Space/双向 Tab/Escape/鼠标拖宽、跨断点两类草稿与确认、实际新增/落库、原图字节与 DOCX 下载。并跑分组/预设/列表/图片、检查项拖拽和 LAN 生命周期回归。
+
+### 7. 反例
+错误：复制两套 Sidebar 切换、全局 overflow-x-hidden、所有模态共用一个随导航销毁的焦点监听。正确：同一实例、真实几何约束、区分断点转换与关闭，内层模态独立管理焦点。
+
 ## 避免
 
 - 不要将网络请求、IndexedDB 保存、导入导出协议直接揉进纯展示组件；应经 Context 或 `utils/` 边界调用。
