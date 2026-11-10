@@ -93,9 +93,9 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ options, onCancel, onConf
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCancel(); }
       }}
     >
-      <div className="w-full max-w-md border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <div className="w-full max-w-md overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start gap-3 border-b border-slate-200 px-6 py-5">
-          <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center border ${isDanger ? 'border-red-200 bg-red-50 text-red-600' : 'border-blue-200 bg-blue-50 text-blue-600'}`}>
+          <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border ${isDanger ? 'border-red-200 bg-red-50 text-red-600' : 'border-blue-200 bg-blue-50 text-blue-600'}`}>
             {isDanger ? (
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.3 4.3L2.8 17a2 2 0 001.7 3h15a2 2 0 001.7-3L13.7 4.3a2 2 0 00-3.4 0z" />
@@ -111,7 +111,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({ options, onCancel, onConf
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{options.message}</p>
           </div>
         </div>
-        <div className="flex justify-end gap-2 px-6 py-4">
+        <div className="flex justify-end gap-2 bg-slate-50/50 px-6 py-4">
           <button type="button" onClick={onCancel} className={BUTTON_SECONDARY}>
             {options.cancelText || '取消'}
           </button>

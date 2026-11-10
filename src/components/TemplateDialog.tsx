@@ -103,7 +103,7 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
                   type="button"
                   onClick={() => setSelectedCatId(cat.id)}
                   aria-pressed={selectedCatId === cat.id}
-                  className={`min-h-9 rounded-[2px] border px-3 text-sm transition-colors ${
+                  className={`min-h-9 rounded-md border px-3 text-sm font-medium transition-colors ${
                     selectedCatId === cat.id
                       ? 'border-blue-600 bg-blue-600 text-white'
                       : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -125,7 +125,7 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
               暂无默认检查项，请在下方添加
             </div>
           ) : (
-            <div className="border border-slate-200">
+            <div className="overflow-hidden rounded-md border border-slate-200">
               {items.map((item) => (
                 <TemplateItemRow
                   key={item.id}
@@ -192,7 +192,7 @@ const TemplateItemRow: React.FC<TemplateItemRowProps> = ({
     setEditing(false);
   };
 
-  const iconButton = 'inline-flex h-8 w-8 items-center justify-center text-slate-400 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600';
+  const iconButton = 'inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600';
 
   return (
     <div className="flex min-h-11 items-center gap-2 border-b border-slate-100 px-3 py-1.5 last:border-b-0 hover:bg-slate-50">
@@ -207,7 +207,7 @@ const TemplateItemRow: React.FC<TemplateItemRowProps> = ({
             if (e.key === 'Escape') setEditing(false);
           }}
           aria-label="检查项名称"
-          className="min-h-8 flex-1 rounded-[2px] border border-blue-500 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="min-h-8 flex-1 rounded-md border border-blue-500 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
           autoFocus
         />
       ) : (
@@ -220,7 +220,7 @@ const TemplateItemRow: React.FC<TemplateItemRowProps> = ({
           onClick={() => onToggleRequired(item.id)}
           aria-pressed={item.required}
           title="切换必填/选填"
-          className={`min-h-7 min-w-12 rounded-[2px] border px-2 text-xs transition-colors ${
+          className={`min-h-7 min-w-12 rounded-md border px-2 text-xs font-medium transition-colors ${
             item.required
               ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
               : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'

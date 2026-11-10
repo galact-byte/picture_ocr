@@ -69,17 +69,27 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onImageFiles }) => {
     [onImageFiles]
   );
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
+  };
+
   return (
     <div
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onPaste={handlePaste}
+      role="button"
       tabIndex={0}
+      aria-label="上传截图"
       className={`
-        flex h-40 w-40 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center
-        transition-all duration-150
+        flex h-40 w-40 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 text-center
+        transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
         ${isDragOver
           ? 'border-blue-400 bg-blue-50 shadow-sm'
           : 'border-slate-300 bg-slate-50/70 hover:border-blue-300 hover:bg-blue-50/40'

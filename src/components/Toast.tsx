@@ -64,7 +64,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               key={toast.id}
               role={toast.tone === 'error' ? 'alert' : 'status'}
               aria-live={toast.tone === 'error' ? 'assertive' : 'polite'}
-              className={`pointer-events-auto flex items-start gap-3 border ${style.container} p-3 shadow-lg`}
+              className={`pointer-events-auto flex items-start gap-3 rounded-lg border ${style.container} p-3 shadow-lg`}
             >
               <span aria-hidden className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${style.icon}`}>{style.symbol}</span>
               <p className="min-w-0 flex-1 whitespace-pre-line break-words text-sm leading-5">{toast.message}</p>

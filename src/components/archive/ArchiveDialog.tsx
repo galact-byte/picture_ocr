@@ -33,8 +33,8 @@ interface Section {
   bytes: number;
 }
 
-const primaryButton = 'border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50';
-const secondaryButton = 'border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
+const primaryButton = 'rounded-md border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50';
+const secondaryButton = 'rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
 
 function blockedReason(stat: SystemStorageStat | null): string | null {
   if (!stat) return '读取失败';
@@ -148,8 +148,8 @@ const ArchiveDialog: React.FC<ArchiveDialogProps> = ({ groups, initialSelectedId
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="archive-dialog-title" className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!running) onClose(); }}>
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-6 py-4">
           <h2 id="archive-dialog-title" className="text-base font-semibold text-slate-950">占用明细与归档</h2>
           <button type="button" onClick={onClose} disabled={running} className={DIALOG_CLOSE} aria-label="关闭">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M18 6L6 18" /></svg>
@@ -215,7 +215,7 @@ const ArchiveDialog: React.FC<ArchiveDialogProps> = ({ groups, initialSelectedId
           </div>}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50/50 px-6 py-4">
           {phase === 'select' && <>
             <span className="mr-auto text-xs text-slate-600">已选 {selected.size} 个系统，约 {formatBytes(selectedBytes)}</span>
             <button onClick={onClose} className={secondaryButton}>取消</button>

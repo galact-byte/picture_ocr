@@ -13,9 +13,11 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // DOCX 仅由 Word 导出动态加载；单独分块可避免其依赖重新并入首屏代码。
+        // 大型第三方库单独分块，避免首屏主 bundle 臃肿。
         manualChunks: {
           docx: ['docx'],
+          jszip: ['jszip'],
+          qrcode: ['qrcode'],
         },
       },
     },

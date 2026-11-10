@@ -633,18 +633,18 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
     : '暂无独立系统，新建项目时填写一个系统名称即可创建。';
 
   const renderSystemRow = (system: ProjectSummary, groupUnit?: string) => (
-    <div key={system.id} id={`system-${system.id}`} data-system-id={system.id} className={`grid ${groupUnit !== undefined ? GROUP_SYSTEM_LIST_GRID : SYSTEM_LIST_GRID} items-center gap-3 border-b border-slate-200 bg-white px-3 ${groupUnit !== undefined ? 'py-2' : 'py-4'} text-sm text-slate-700 last:border-b-0 hover:bg-slate-50 sm:px-4`}>
-      <label className="flex min-h-11 items-center justify-center"><input aria-label={`选择${getSystemDisplayName(system)}`} type="checkbox" checked={selectedProjectIds.has(system.id)} onChange={() => toggleProjectSelection(system.id, system.groupId)} className="h-4 w-4" /></label>
-      <div className="min-w-0"><button type="button" onClick={() => openSystem(system.id)} className={`min-h-11 break-words text-left font-medium underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-blue-600 ${system.archive ? 'text-slate-500' : 'text-slate-950'}`}>{getSystemDisplayName(system)}</button>
-        {system.archive && <span data-archived-tag title={`归档于 ${formatTime(system.archive.archivedAt)}，文件：${system.archive.fileName}`} className="ml-2 inline-block whitespace-nowrap border border-slate-300 bg-slate-100 px-1.5 text-xs text-slate-600">已归档</span>}
-        {groupUnit !== undefined && system.meta.unitName && system.meta.unitName !== groupUnit && <p className="break-words text-xs text-slate-600">{system.meta.unitName}</p>}
-        <p className="mt-1 break-words text-xs text-slate-600 lg:hidden">{groupUnit === undefined && `${system.meta.unitName || '未填写单位'} · `}{formatTime(system.updatedAt)} · {system.assetCount} 项资产</p>
+    <div key={system.id} id={`system-${system.id}`} data-system-id={system.id} className={`grid ${groupUnit !== undefined ? GROUP_SYSTEM_LIST_GRID : SYSTEM_LIST_GRID} items-center gap-3 border-b border-slate-200/80 bg-white px-3 ${groupUnit !== undefined ? 'py-2.5' : 'py-3.5'} text-sm text-slate-700 transition-colors last:border-b-0 hover:bg-slate-50/90 sm:px-4`}>
+      <label className="flex min-h-11 items-center justify-center"><input aria-label={`选择${getSystemDisplayName(system)}`} type="checkbox" checked={selectedProjectIds.has(system.id)} onChange={() => toggleProjectSelection(system.id, system.groupId)} className="h-4 w-4 rounded border-slate-300 text-blue-600" /></label>
+      <div className="min-w-0"><button type="button" onClick={() => openSystem(system.id)} className={`min-h-11 break-words text-left font-semibold underline-offset-4 hover:text-blue-700 hover:underline focus-visible:outline focus-visible:outline-blue-600 ${system.archive ? 'text-slate-500' : 'text-slate-900'}`}>{getSystemDisplayName(system)}</button>
+        {system.archive && <span data-archived-tag title={`归档于 ${formatTime(system.archive.archivedAt)}，文件：${system.archive.fileName}`} className="ml-2 inline-block whitespace-nowrap rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">已归档</span>}
+        {groupUnit !== undefined && system.meta.unitName && system.meta.unitName !== groupUnit && <p className="break-words text-xs text-slate-500">{system.meta.unitName}</p>}
+        <p className="mt-1 break-words text-xs text-slate-500 lg:hidden">{groupUnit === undefined && `${system.meta.unitName || '未填写单位'} · `}{formatTime(system.updatedAt)} · {system.assetCount} 项资产</p>
       </div>
-      {groupUnit === undefined && <span className="hidden break-words lg:block">{system.meta.unitName || '未填写'}</span>}<span data-column="updated" className="hidden whitespace-nowrap text-xs lg:block">{formatTime(system.updatedAt)}</span><span data-column="assets" className="hidden whitespace-nowrap text-center tabular-nums lg:block">{system.assetCount}</span>
+      {groupUnit === undefined && <span className="hidden break-words text-slate-600 lg:block">{system.meta.unitName || '未填写'}</span>}<span data-column="updated" className="hidden whitespace-nowrap text-xs text-slate-500 tabular-nums lg:block">{formatTime(system.updatedAt)}</span><span data-column="assets" className="hidden whitespace-nowrap text-center font-medium text-slate-700 tabular-nums lg:block">{system.assetCount}</span>
       <div className="col-span-2 flex flex-wrap justify-end gap-2 md:col-span-1">
         {system.archive
           ? <button type="button" disabled={restoringSystem !== null} onClick={() => void requestRestore(system)} className={`${actionButton} border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50`}>{restoringSystem?.id === system.id ? '恢复中…' : '恢复'}</button>
-          : <button type="button" onClick={() => openSystem(system.id)} className={`${actionButton} border-slate-300 bg-white text-slate-700 hover:bg-slate-100`}>打开</button>}
+          : <button type="button" onClick={() => openSystem(system.id)} className={`${actionButton} border-blue-200 bg-blue-50/80 font-semibold text-blue-700 hover:border-blue-300 hover:bg-blue-100/80`}>打开</button>}
         {onStartLanCollector && <button type="button" disabled={Boolean(system.archive)} title={system.archive ? archivedHint : undefined} onClick={() => onStartLanCollector(system.groupId, getSystemDisplayName(system), [system.id])} className={`${actionButton} hidden border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50 md:inline-flex`}>手机采集</button>}
         <ProjectActions label={`${getSystemDisplayName(system)}的系统操作`} actions={systemActions(system)} />
       </div>
@@ -652,50 +652,60 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
   );
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#f4f6f9]">
       <fieldset disabled={batchExporting} className="min-w-0">
       <ProjectListHeader search={search} searchLabel={isGroupList ? '搜索项目或组内系统' : '搜索当前列表的系统'} showSelection={!isGroupList} selectedCount={selectedSystems.length} exportDisabled={compressingSystemId !== null || restoringSystem !== null} onExportSelected={handleExportSelected} onSearchChange={changeSearch} onDeleteSelected={handleDeleteSelectedProjects} onCreateProject={openCreateDialog} onOpenStorageSettings={() => setStorageSettingsOpen(true)} onOpenPresetSettings={() => { setPresetDialogOpen(true); void refreshPreset(); }} />
       <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-8">
-        <h2 className="mb-4 text-2xl font-bold text-slate-950">项目管理中心</h2>
-        {batchProgress !== null && <p data-batch-status role="status" aria-live="polite" className="mb-4 break-words border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{batchProgress}</p>}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/90 pb-3">
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-950">项目管理中心</h2>
+          <nav aria-label="项目分类" className={orphanCount === 0 ? 'relative inline-grid grid-cols-2 rounded-lg bg-slate-200/70 p-1' : 'flex flex-wrap gap-1 rounded-lg bg-slate-200/70 p-1'}>
+            {orphanCount === 0 && (
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none col-start-1 row-start-1 h-full w-full rounded-md bg-white shadow-xs transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  location.kind === 'independent' ? 'translate-x-full' : 'translate-x-0'
+                }`}
+              />
+            )}
+            <button type="button" aria-current={location.kind !== 'independent' ? 'page' : undefined} onClick={() => navigate({ kind: 'groups' })}
+              className={`${actionButton} relative z-10 col-start-1 row-start-1 border-0 px-4 transition-colors duration-200 ${location.kind !== 'independent' ? `${orphanCount > 0 ? 'bg-white shadow-xs ' : 'bg-transparent '}font-semibold text-blue-700` : 'bg-transparent text-slate-600 hover:text-slate-900'}`}>
+              多系统项目 <span className={`ml-1.5 text-xs tabular-nums ${location.kind !== 'independent' ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>{realGroupCount}</span>{orphanCount > 0 && <span className="ml-2 text-xs text-red-700">另有 {orphanCount} 个异常组</span>}
+            </button>
+            <button type="button" aria-current={location.kind === 'independent' ? 'page' : undefined} onClick={() => navigate({ kind: 'independent' })}
+              className={`${actionButton} relative z-10 col-start-2 row-start-1 border-0 px-4 transition-colors duration-200 ${location.kind === 'independent' ? `${orphanCount > 0 ? 'bg-white shadow-xs ' : 'bg-transparent '}font-semibold text-blue-700` : 'bg-transparent text-slate-600 hover:text-slate-900'}`}>
+              独立系统 <span className={`ml-1.5 text-xs tabular-nums ${location.kind === 'independent' ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>{independent.length}</span>
+            </button>
+          </nav>
+        </div>
+        {batchProgress !== null && <p data-batch-status role="status" aria-live="polite" className="mb-4 break-words rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">{batchProgress}</p>}
         {reminder.result && reminder.result.level !== 'none' && <StorageReminderBanner result={reminder.result} onSnooze={reminder.snooze}
           onArchive={() => setArchiveDialog({ initialSelectedIds: reminder.result?.staleCandidates.map((candidate) => candidate.projectId) })} />}
-        <nav aria-label="项目分类" className="mb-6 flex flex-wrap gap-2 border-b border-slate-300">
-          <button type="button" aria-current={location.kind !== 'independent' ? 'page' : undefined} onClick={() => navigate({ kind: 'groups' })}
-            className={`${actionButton} rounded-none border-x-0 border-t-0 border-b-2 ${location.kind !== 'independent' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-600 hover:bg-slate-200'}`}>
-            多系统项目 <span className="ml-2 tabular-nums">{realGroupCount}</span>{orphanCount > 0 && <span className="ml-2 text-xs text-red-700">另有 {orphanCount} 个异常组</span>}
-          </button>
-          <button type="button" aria-current={location.kind === 'independent' ? 'page' : undefined} onClick={() => navigate({ kind: 'independent' })}
-            className={`${actionButton} rounded-none border-x-0 border-t-0 border-b-2 ${location.kind === 'independent' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-600 hover:bg-slate-200'}`}>
-            独立系统 <span className="ml-2 tabular-nums">{independent.length}</span>
-          </button>
-        </nav>
         <section aria-labelledby="project-list-title">
           <h3 id="project-list-title" ref={headingRef} tabIndex={-1} className="sr-only">{title}</h3>
-          {loadError && <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 border border-red-200 bg-red-50 p-4 text-red-800"><span>{loadError}{loaded ? '，下方保留上次成功加载的列表。' : ''}</span><button type="button" disabled={loading} onClick={() => void refreshProjects()} className={`${actionButton} border-red-300 bg-white`}>重试</button></div>}
-          <div key={locationKey + search} aria-busy={loading} className={isGroupList ? 'space-y-4' : 'rounded-lg border border-slate-200 bg-white shadow-sm'}>
-            {!isGroupList && <div className={`grid ${SYSTEM_LIST_GRID} items-center gap-3 border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 sm:px-4`}>
-              <label className="flex min-h-11 items-center justify-center"><input aria-label="全选当前可见系统" type="checkbox" checked={allFilteredSelected} onChange={() => toggleAllFilteredProjects(filteredSystems, null)} disabled={filteredSystems.length === 0} className="h-4 w-4" /></label>
+          {loadError && <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><span>{loadError}{loaded ? '，下方保留上次成功加载的列表。' : ''}</span><button type="button" disabled={loading} onClick={() => void refreshProjects()} className={`${actionButton} border-red-300 bg-white`}>重试</button></div>}
+          <div key={locationKey + search} aria-busy={loading} className={isGroupList ? 'space-y-4' : 'overflow-hidden rounded-lg border border-slate-200/95 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]'}>
+            {!isGroupList && <div className={`grid ${SYSTEM_LIST_GRID} items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 py-2.5 text-xs font-semibold text-slate-600 sm:px-4`}>
+              <label className="flex min-h-11 items-center justify-center"><input aria-label="全选当前可见系统" type="checkbox" checked={allFilteredSelected} onChange={() => toggleAllFilteredProjects(filteredSystems, null)} disabled={filteredSystems.length === 0} className="h-4 w-4 rounded border-slate-300 text-blue-600" /></label>
               <span>系统名称</span><span className="hidden lg:block">归属</span><span className="hidden lg:block">最后更新</span><span className="hidden text-center lg:block">资产数</span><span className="hidden text-right md:block">操作</span>
             </div>}
             {!loaded ? <p className="px-6 py-12 text-center text-sm text-slate-600">{loading ? '正在加载项目列表…' : '列表尚未加载，请重试。'}</p>
-              : (isGroupList ? filteredGroups.length : filteredSystems.length) === 0 ? <div className="px-6 py-12 text-center text-sm text-slate-600"><p>{emptyMessage}</p>{search.trim() && <button type="button" onClick={() => changeSearch('')} className={`${actionButton} mt-3 border-slate-300 text-slate-700 hover:bg-slate-100`}>清除搜索</button>}</div>
+              : (isGroupList ? filteredGroups.length : filteredSystems.length) === 0 ? <div className="rounded-lg border border-slate-200 bg-white px-6 py-14 text-center text-sm text-slate-600 shadow-2xs"><p>{emptyMessage}</p>{search.trim() && <button type="button" onClick={() => changeSearch('')} className={`${actionButton} mt-3 border-slate-300 text-slate-700 hover:bg-slate-100`}>清除搜索</button>}</div>
               : isGroupList ? filteredGroups.map(summary => {
                 const systems = filterGroupSystems(summary, search);
                 const expanded = expandedGroupIds.includes(summary.id);
                 const allSelected = systems.length > 0 && selectionGroupId === summary.id && systems.every(system => selectedProjectIds.has(system.id));
                 const unitName = summary.group?.unitName || summary.systems[0]?.meta.unitName || '';
-                return <div key={summary.id} data-group-id={summary.id} className="rounded-lg border border-slate-300 bg-white">
-                  <div className="flex flex-col gap-2 rounded-t-lg bg-slate-50 p-3 text-sm text-slate-700 sm:px-4 lg:flex-row lg:items-center lg:gap-4">
-                    <button id={`group-toggle-${summary.id}`} type="button" aria-expanded={expanded} aria-controls={`group-systems-${summary.id}`} onClick={() => toggleGroup(summary.id)} className="group flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded text-left hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-                      <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded border border-slate-300 bg-white text-slate-700 group-hover:border-blue-500 group-hover:text-blue-700">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={expanded ? 'm6 9 6 6 6-6' : 'm9 6 6 6-6 6'} /></svg>
+                return <div key={summary.id} data-group-id={summary.id} className="overflow-hidden rounded-lg border border-slate-200/95 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
+                  <div className={`flex flex-col gap-2 p-3 text-sm text-slate-700 transition-colors duration-150 sm:px-4 lg:flex-row lg:items-center lg:gap-4 ${expanded ? 'bg-slate-50/90' : 'bg-white hover:bg-slate-50/60'}`}>
+                    <button id={`group-toggle-${summary.id}`} type="button" aria-expanded={expanded} aria-controls={`group-systems-${summary.id}`} onClick={() => toggleGroup(summary.id)} className="group flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                      <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center transition-colors ${expanded ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'}`}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ease-out ${expanded ? 'rotate-90' : ''}`}><path d="m9 6 6 6-6 6" /></svg>
                       </span>
                       <span className="min-w-0 flex-1 py-1">
-                        <span className="block break-words text-base font-semibold text-slate-950">{getGroupDisplayName(summary)}</span>
+                        <span className="block break-words text-base font-bold text-slate-950">{getGroupDisplayName(summary)}</span>
                         <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
                           {unitName && unitName !== getGroupDisplayName(summary) && <span className="break-words">{unitName}</span>}
-                          <span className="whitespace-nowrap">{summary.systems.length} 个系统</span>{archivedInGroup(summary) > 0 && <span data-group-archived className="whitespace-nowrap border border-slate-300 bg-slate-100 px-1.5 text-slate-600">{archivedInGroup(summary) === summary.systems.length ? '已归档' : `${archivedInGroup(summary)} 个已归档`}</span>}<span className="whitespace-nowrap">更新于 {formatTime(groupUpdatedAt(summary))}</span>
+                          <span className="whitespace-nowrap tabular-nums">{summary.systems.length} 个系统</span>{archivedInGroup(summary) > 0 && <span data-group-archived className="whitespace-nowrap rounded border border-slate-300 bg-slate-100 px-1.5 text-slate-600">{archivedInGroup(summary) === summary.systems.length ? '已归档' : `${archivedInGroup(summary)} 个已归档`}</span>}<span className="whitespace-nowrap text-slate-500 tabular-nums">更新于 {formatTime(groupUpdatedAt(summary))}</span>
                         </span>
                         {!summary.group && <span className="mt-1 block text-xs text-red-700">项目组记录缺失 · 系统数据仍保留，可打开或导出</span>}
                       </span>
@@ -709,7 +719,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ viewState, onViewStateChange,
                   <div id={`group-systems-${summary.id}`} hidden={!expanded} aria-labelledby={`group-toggle-${summary.id}`}>
                     {expanded && <div className="border-t border-slate-200">
                       {systems.length === 0 ? <p className="px-4 py-6 text-sm text-slate-600">此项目暂无系统。</p> : <>
-                        <div data-system-header className={`grid ${GROUP_SYSTEM_LIST_GRID} min-h-12 items-center gap-3 border-b border-slate-200 px-3 py-1 text-xs text-slate-600 sm:px-4`}>
+                        <div data-system-header className={`grid ${GROUP_SYSTEM_LIST_GRID} min-h-11 items-center gap-3 border-b border-slate-200 bg-slate-50/70 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:px-4`}>
                           <label className="flex min-h-11 items-center justify-center"><input aria-label="全选当前可见系统" type="checkbox" checked={allSelected} onChange={() => toggleAllFilteredProjects(systems, summary.id)} className="h-4 w-4" /></label>
                           <span>系统名称{systems.length !== summary.systems.length && <span className="ml-2">（匹配 {systems.length} 个）</span>}</span>
                           <span data-column="updated" className="hidden lg:block">最后更新</span><span data-column="assets" className="hidden whitespace-nowrap text-center lg:block">资产数</span>

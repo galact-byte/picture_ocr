@@ -15,7 +15,9 @@
 
 ## 样式
 
-- 直接在 `className` 使用 Tailwind 类，沿用现有的 slate/blue/red 色彩、边框、直角卡片和响应式断点写法。`src/components/project-list/ProjectTableRow.tsx` 和 `src/components/LanMobileCollector.tsx` 是代表例子。
+- 直接在 `className` 使用 Tailwind 类，沿用 slate/blue/red 功能色与紧凑响应式布局。用户最终确认的视觉以 `ProjectList.tsx`、`Sidebar.tsx`、`ItemCard.tsx` 为准：卡片/普通弹窗使用 `rounded-lg`（8px），按钮/输入框使用 `rounded-md`（6px）；不再将旧的 2px 直角基线套回已调整的界面。
+- 外层项目列表用纯色 `#f4f6f9` 画布，工作台用浅灰蓝 `#eaeff5` 导航、`#f8fafc` 正文画布和白卡片拉开层次。标识只用蓝色盾勾图标；不增加点阵、装饰背景框、重复标签或提示微文案。列表页签的平移滑块和展开箭头旋转服从 `prefers-reduced-motion`，不为其他控件添加位移/缩放。
+- 必填进度用页头胶囊进度条表达；检查项侧条为必填缺图红、已传绿、选填灰，不另加“已传 N 张”徽标。计数沿用 `.tabular-nums`。
 - 全局基础字体与 `.text-sm`/`.text-xs` 文字大小覆写只位于 `src/index.css`；除非确属全局基础规则，不要新增组件专属全局 CSS。
 - 重复的项目列表网格类抽到 `src/components/project-list/projectListUi.ts`，而不是复制到表头和表格行。实际列表共用 `SYSTEM_LIST_GRID` / `GROUP_SYSTEM_LIST_GRID`；窄屏操作可换到下一行，名称不得被固定操作列挤出窗口。
 - 多系统项目在当前页原地展开：项目名称和箭头为同一原生按钮，`aria-expanded`/`aria-controls` 关联组内区域；项目工具放在按钮外。支持同时展开多个组，独立项目容器以浅色标题栏区分；展开区域至少 44×44px，SVG 箭头 20px，标题区域可点击。项目单位/系统数/更新时间集中在标题栏，下方系统表格使用自己的表头与网格；相同单位不重复，不同单位在系统名下保留。全选并入表头，仅选择后显示批量删除；资产数有独立表头且不换行。收起包含当前焦点的组时，焦点返回项目按钮。页签下同名分类标题只保留 sr-only 语义，不占可见空间。
@@ -23,7 +25,7 @@
 
 ## 普通弹窗样式
 
-- `src/components/dialogStyles.ts` 集中定义普通弹窗外框、标题、正文、底栏、输入框及按钮类。沿用工作台直角、slate 边框与蓝色主操作；宽度按内容保留，图片查看器与相机全屏布局不套用该样式。
+- `src/components/dialogStyles.ts` 集中定义普通弹窗外框、标题、正文、底栏、输入框及按钮类。沿用工作台 8px 外框、6px 控件、slate 边框与蓝色主操作；宽度按内容保留，图片查看器与相机全屏布局不套用该样式。
 - 底栏按次要操作在左、主操作在右排列，危险操作为红色。保留功能色：局域网浅蓝/采集中绿色、项目信息浅黄、覆盖导入橙色、合并导入与导入成功绿色、缺项提醒琥珀色/红色、模板必填红色。
 - `TemplateDialog.tsx` 的行内编辑和删除按钮常显，采用原生按钮并提供中文可访问名称，键盘和触屏均可操作，不依赖 hover 才能出现。
 
@@ -32,6 +34,7 @@
 - 对话框容器使用 `role="dialog"` 和 `aria-modal="true"`；有可见标题时以 `aria-labelledby` 关联它，参见 `src/components/LanCollectorDialog.tsx`。无独立标题的图片预览 `src/components/ImageViewer.tsx` 目前只有 `role`/`aria-modal`，新增或重构时不要将其误作完整命名范例。
 - 状态通知使用 `role="status"` 或 `aria-live`，见 `LanCollectorDialog.tsx` 和 `PwaReadinessCard.tsx`。
 - 非阻塞轻提示统一走 `useToast()`（`src/components/Toast.tsx` 的 `ToastProvider` 挂在 `main.tsx`），成功/失败/信息分别用 `success`/`error`/`info`；error toast 用 `role="alert"`，其余用 `role="status"`。不要用 `window.alert` 做提示；二次确认仍用 `useConfirmDialog()`。
+- 检查项重命名/删除及缩略图放大/删除按钮提供 `min-h-11 min-w-11`（44px）热区，图标保持约 16px；缩略图遮罩同时支持 hover 与 focus-within。`UploadZone` 的按钮角色支持 Enter/Space。
 - 新增仅有图标或关闭符号的按钮必须有中文 `aria-label`，输入错误状态通过 `aria-invalid` 暴露，见 `src/components/project-list/NewProjectDialog.tsx`。历史 `ImageViewer.tsx` 的图标按钮仅有 `title`，不应复制；应在后续触及该组件时补齐。
 - 使用语义化 `button`、`label`、`input`；移动端及对话框中的按钮通常写明 `type="button"`，参见 `src/components/LanMobileCollector.tsx` 和 `LanCollectorDialog.tsx`。项目列表及早期组件存在省略该属性的历史写法；新增表单内按钮应显式写明，且保留禁用状态。
 

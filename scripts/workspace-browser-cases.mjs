@@ -28,6 +28,78 @@ export async function seed() {
   window.location.hash = '/project/workspace-qa';
   await until(() => document.querySelector('aside') && document.querySelector('main h2'), '工作台装配');
 }
+export async function categoryNavigation() {
+  const errors = [];
+  const onError = event => errors.push(event.error?.stack || event.message);
+  window.addEventListener('error', onError);
+  const openNavigation = async () => {
+    const toggle = button('分类导航');
+    if (toggle?.getClientRects().length && !navigationOpen()) toggle.click();
+    await until(() => document.querySelector('aside button[title="网络设备"]')?.getClientRects().length, '可见分类菜单');
+  };
+  try {
+    const doc = await db.loadProject('workspace-qa');
+    for (let cycle = 0; cycle < 2; cycle++) {
+      for (const category of doc.categories) {
+        await openNavigation();
+        const target = [...document.querySelectorAll('aside button[title]')].find(el => el.title === category.name);
+        assert(target, `找不到分类入口：${category.name}`);
+        target.click();
+        const asset = doc.assets.find(asset => asset.categoryId === category.id);
+        const matches = () => asset
+          ? document.querySelector('main h2')?.textContent === asset.name
+          : document.querySelector('main')?.textContent.includes('请从左侧选择一个资产');
+        await until(() => errors.length > 0 || matches(), `切换分类：${category.name}`);
+        assert(errors.length === 0, `分类切换导致运行时异常：${errors.join('\n')}`);
+        assert(document.querySelector('header') && document.querySelector('aside') && matches(), `分类切换后工作台白屏：${category.name}`);
+      }
+    }
+    await openNavigation();
+    document.querySelector('aside button[title="网络设备"]').click();
+    await until(() => document.querySelector('main h2')?.textContent === '核心交换机', '返回有资产的分类');
+    if (!document.querySelector('aside span[title="核心交换机"]')?.getClientRects().length) {
+      document.querySelector('aside button[title="网络设备"]').click();
+    }
+    await until(() => document.querySelector('aside span[title="核心交换机"]')?.getClientRects().length, '展开有资产的分类');
+    document.querySelector(`aside span[title="${longName}"]`).closest('button').click();
+    await until(() => document.querySelector('main h2')?.textContent === longName, '无检查项资产仍可进入');
+    assert(!document.querySelector('[data-item-id]'), '无检查项资产残留上一资产内容');
+    await openNavigation();
+    document.querySelector('aside span[title="核心交换机"]').closest('button').click();
+    await until(() => document.querySelector('main h2')?.textContent === '核心交换机', '恢复原资产');
+    await checkData();
+    return `${doc.categories.length} 个分类往返两轮，空分类/有资产/无检查项均无白屏，原图字节保持`;
+  } finally {
+    window.removeEventListener('error', onError);
+  }
+}
+export async function draftAndThumbnailControls() {
+  const failures = [];
+  const field = () => document.querySelector('main input[placeholder="添加自定义检查项..."]');
+  const draft = '尚未提交的检查项草稿';
+  for (const label of ['放大查看', '删除图片']) {
+    const control = document.querySelector(`main button[aria-label="${label}"]`);
+    assert(control, `找不到缩略图操作：${label}`);
+    const rect = control.getBoundingClientRect();
+    if (rect.width < 44 || rect.height < 44) failures.push(`${label}热区不足44px：${rect.width}×${rect.height}`);
+    control.focus();
+    await pause(250);
+    assert(getComputedStyle(control.parentElement).opacity === '1', `${label}聚焦时操作层不可见`);
+  }
+  input(field(), draft); await pause(50);
+  button('调整顺序', document.querySelector('main')).click();
+  await until(() => button('完成排序', document.querySelector('main')), '进入排序模式');
+  button('完成排序', document.querySelector('main')).click();
+  await until(field, '退出排序模式');
+  if (field().value !== draft) failures.push('进入并退出排序后检查项草稿丢失');
+  input(field(), draft); await pause(50);
+  await categoryNavigation();
+  if (field().value !== draft) failures.push('切换空分类后检查项草稿丢失');
+  input(field(), ''); await pause(50);
+  await checkData();
+  assert(failures.length === 0, failures.join('；'));
+  return '检查项草稿跨排序/空分类保留，缩略图双按钮44px且键盘聚焦可见';
+}
 export async function geometry() {
   await pause(100);
   const width = innerWidth;

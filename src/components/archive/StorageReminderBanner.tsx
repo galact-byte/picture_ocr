@@ -25,7 +25,7 @@ function describe(reason: ReminderReason): string {
 const StorageReminderBanner: React.FC<StorageReminderBannerProps> = ({ result, onArchive, onSnooze }) => {
   const urgent = result.level === 'urgent';
   return (
-    <div role={urgent ? 'alert' : 'status'} data-storage-reminder={result.level} className={`mb-4 flex flex-col gap-3 border p-4 text-sm sm:flex-row sm:items-center ${urgent ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+    <div role={urgent ? 'alert' : 'status'} data-storage-reminder={result.level} className={`mb-4 flex flex-col gap-3 rounded-lg border p-4 text-sm shadow-2xs sm:flex-row sm:items-center ${urgent ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-semibold">{urgent ? '磁盘空间严重不足' : '存储空间提醒'}</p>
         {result.reasons.map((reason) => <p key={reason.kind} className="leading-6">{describe(reason)}</p>)}

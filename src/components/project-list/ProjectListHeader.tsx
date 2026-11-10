@@ -29,23 +29,21 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
   onOpenPresetSettings,
 }) => {
   return (
-    <header className="border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-8">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center border-2 border-blue-600 text-blue-600">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7 4v5c0 4.2-2.9 7.2-7 9-4.1-1.8-7-4.8-7-9V7l7-4z" />
-            </svg>
-          </div>
+    <header className="border-b border-slate-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:px-8">
+      <div className="mx-auto flex max-w-[1280px] flex-col gap-3 xl:flex-row xl:items-center xl:justify-between xl:gap-6">
+        <div className="flex items-center gap-2.5">
+          <svg className="h-6 w-6 shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
           <div>
-            <h1 className="text-xl font-extrabold uppercase tracking-tight text-blue-700">Evidence Workspace</h1>
+            <h1 className="text-lg font-extrabold tracking-tight text-slate-950 sm:text-xl">证据采集平台</h1>
             <p className="text-xs text-slate-500">证据采集工具</p>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 xl:flex-wrap">
-          <label className="flex h-11 min-w-0 basis-full items-center border border-slate-300 bg-slate-50 px-3 text-slate-500 focus-within:border-blue-400 focus-within:bg-white sm:basis-[16rem] sm:flex-1 xl:w-[320px] xl:flex-none">
-            <svg className="mr-3 h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-2.5 xl:flex-wrap">
+          <label className="flex h-11 min-w-0 basis-full items-center rounded-md border border-slate-300 bg-slate-50 px-3 text-slate-500 transition-colors focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/15 sm:basis-[16rem] sm:flex-1 xl:w-[320px] xl:flex-none">
+            <svg className="mr-2.5 h-4 w-4 flex-shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.2-5.2M10.5 18a7.5 7.5 0 100-15 7.5 7.5 0 000 15z" />
             </svg>
             <input
@@ -64,9 +62,10 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
             title="批量 ZIP，解压后可逐个导入"
           >导出选中{selectedCount > 0 ? ` ${selectedCount}` : ''}</button>}
           {showSelection && <button
+            type="button"
             onClick={onDeleteSelected}
             disabled={selectedCount === 0}
-            className="inline-flex h-11 min-w-[108px] items-center justify-center gap-2 border border-slate-300 bg-white px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+            className="inline-flex h-11 min-w-[108px] items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
             title="勾选系统后批量删除"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,25 +74,28 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
             删除选中{selectedCount > 0 ? ` ${selectedCount}` : ''}
           </button>}
           <button
+            type="button"
             onClick={onOpenStorageSettings}
-            className="inline-flex h-11 min-w-11 items-center justify-center gap-2 border border-slate-300 bg-white px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+            className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
             title="存储设置"
             aria-label="存储设置"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.2.61.74 1.05 1.38 1.15" />
             </svg>
             <span className="hidden sm:inline">存储设置</span>
           </button>
           <button
+            type="button"
             onClick={onOpenPresetSettings}
-            className="inline-flex h-11 min-w-11 items-center justify-center gap-2 border border-slate-300 bg-white px-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+            className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
             title="模板预设"
           >模板预设</button>
           <button
+            type="button"
             onClick={onCreateProject}
-            className="inline-flex h-11 min-w-[108px] items-center justify-center gap-2 border border-blue-300 bg-blue-50 px-3 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+            className="inline-flex h-11 min-w-[112px] items-center justify-center gap-2 rounded-md border border-blue-300 bg-blue-50 px-3.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -102,7 +104,7 @@ const ProjectListHeader: React.FC<ProjectListHeaderProps> = ({
           </button>
         </div>
       </div>
-      {showSelection && selectedCount > 0 && <p className="mt-2 text-right text-xs text-slate-600">解压后可逐个导入</p>}
+      {showSelection && selectedCount > 0 && <p className="mx-auto mt-2 max-w-[1280px] text-right text-xs text-slate-600">解压后可逐个导入</p>}
     </header>
   );
 };

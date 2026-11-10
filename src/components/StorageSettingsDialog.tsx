@@ -295,7 +295,7 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
     onReminderSettingsChanged?.();
     showToast('提醒设置已保存。', 'success');
   };
-  const reminderInput = 'w-20 border border-slate-300 px-2 py-1 text-right text-sm tabular-nums focus:border-blue-500 focus:outline-none';
+  const reminderInput = 'w-20 rounded-md border border-slate-300 px-2 py-1 text-right text-sm tabular-nums focus:border-blue-500 focus:outline-none';
 
   return (
     <div
@@ -305,10 +305,10 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-6 py-4">
           <h2 className="text-base font-semibold text-slate-950">存储设置</h2>
           <button type="button" onClick={onClose} className={DIALOG_CLOSE} aria-label="关闭">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,14 +340,14 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
                 <button
                   onClick={handleChoose}
                   disabled={busy}
-                  className="border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   更改位置…
                 </button>
                 <button
                   onClick={handleReset}
                   disabled={busy || !!info?.isDefault}
-                  className="border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
                 >
                   恢复默认位置
                 </button>
@@ -441,7 +441,7 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
             {onOpenArchive && (
               <button
                 onClick={onOpenArchive}
-                className="mt-2 border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                className="mt-2 rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100"
               >
                 查看占用明细与归档…
               </button>
@@ -458,7 +458,7 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
             </div>
             <button
               onClick={handleSaveReminder}
-              className="mt-3 border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+              className="mt-3 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50"
             >
               保存提醒设置
             </button>
@@ -488,7 +488,7 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
             <button
               onClick={handleSelfCheck}
               disabled={checking}
-              className="mt-2 border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-2 rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {checking ? '自检中…' : '立即自检并修复'}
             </button>
@@ -512,7 +512,7 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
               <button
                 onClick={() => void handleMigrateImages(false)}
                 disabled={migrating || (migration !== null && migration.pending === 0)}
-                className="border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {migrating ? '优化中…' : '立即优化'}
               </button>
@@ -537,14 +537,14 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
               <button
                 onClick={handleExportDiagnostics}
                 disabled={exporting}
-                className="border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {exporting ? '导出中…' : '导出诊断包'}
               </button>
               <button
                 onClick={handleClearErrors}
                 disabled={errorCount === 0}
-                className="border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
               >
                 清空错误记录
               </button>
@@ -555,8 +555,8 @@ const StorageSettingsDialog: React.FC<StorageSettingsDialogProps> = ({ onClose, 
           </div>
         </div>
 
-        <div className="flex justify-end border-t border-slate-200 px-6 py-4">
-          <button onClick={onClose} className="border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+        <div className="flex justify-end border-t border-slate-200 bg-slate-50/50 px-6 py-4">
+          <button onClick={onClose} className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             关闭
           </button>
         </div>

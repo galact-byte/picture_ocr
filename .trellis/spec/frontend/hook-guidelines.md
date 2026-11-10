@@ -24,6 +24,12 @@
 - 未使用 React Query、SWR 或通用 fetch hook。浏览器端 API 请求在消费它的组件内完成，例如 `LanMobileCollector.tsx` 的会话拉取、上传与保存确认轮询。
 - 外部响应按不可信数据处理：检查 `response.ok`/状态码，`json()` 失败提供回退消息，并将 `unknown` 错误缩窄为 `Error` 后展示中文可理解提示。
 
+## 分类空状态与 Hook 次序
+
+- `ContentArea` 在无选中资产时提前返回空状态；全部 Hook（含 `useCallback`）必须位于该返回之前，不能让有资产和空分类两次渲染的调用数量不同。否则切换分类会触发 React #300 并清空页面。
+- 添加检查项回调通过 `activeAssetRef.current` 获取当前资产；空值时不派发 `ADD_ITEM`。输入状态仍由 `AddItemBar` 内聚；父级 `addItemDraftRef` 保存草稿（输入时同步、提交后清空），排序/空分类卸载后以 `useState(draftRef.current)` 恢复。不能仅把 state 下沉而意外丢掉原父层保留的草稿。
+- 回归使用 `node scripts/verify-project-list-ui.mjs --workspace --navigation-only`：Web/Electron 各在 1440px、375px 遍历 8 个分类两轮，断言空分类引导、有资产恢复、无检查项资产和原图片字节；完整工作台套件也包含此路径。
+
 ## 避免
 
 - 不要新建仅为“统一形式”的 hooks 目录；先确认逻辑确有跨组件复用。

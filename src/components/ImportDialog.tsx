@@ -66,7 +66,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
   const disableActions = !selectedFile || (isEncrypted && !password) || importing;
   const showSuccess = result?.success === true;
 
-  const modeButton = 'flex min-h-16 flex-col items-start justify-center rounded-[2px] border px-4 py-3 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50';
+  const modeButton = 'flex min-h-16 flex-col items-start justify-center rounded-md border px-4 py-3 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50';
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="import-dialog-title" className={DIALOG_OVERLAY} onClick={() => { if (!importing) onClose(); }}>
@@ -104,7 +104,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
                   accept=".zip,.evidence"
                   onChange={handleFileChange}
                   disabled={importing}
-                  className="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:min-h-9 file:rounded-[2px] file:border file:border-blue-200 file:bg-blue-50 file:px-3 file:text-sm file:text-blue-700 hover:file:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-2 block w-full text-sm text-slate-600 file:mr-3 file:min-h-9 file:rounded-md file:border file:border-blue-200 file:bg-blue-50 file:px-3 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </label>
 

@@ -112,6 +112,13 @@ try {
           await client.evaluate('window.cases.prepareNavigation()'); await key(space ? ' ' : 'Enter', space ? 'Space' : 'Enter', space ? 32 : 13);
           await client.evaluate('window.cases.until(() => window.cases.navigationOpen(), "原生按键打开导航")');
         };
+        for (const width of [1440, 375]) {
+          await size(width);
+          pass(`${width}px ${await client.evaluate('window.cases.categoryNavigation()')}`);
+          pass(`${width}px ${await client.evaluate('window.cases.draftAndThumbnailControls()')}`);
+          await screenshot(`category-navigation-${width}`);
+        }
+        if (process.argv.includes('--navigation-only')) continue;
         await client.send('Emulation.setFocusEmulationEnabled', { enabled: true });
         for (const width of [1440, 375]) {
           await size(width);

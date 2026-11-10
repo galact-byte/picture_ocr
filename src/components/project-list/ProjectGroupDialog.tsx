@@ -127,8 +127,8 @@ const ProjectGroupDialog: React.FC<ProjectGroupDialogProps> = ({ open, mode, gro
 
   return (
     <div role="dialog" data-project-group-dialog aria-modal="true" aria-labelledby="group-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!busy) onClose(); }}>
-      <div ref={containerRef} className="w-full max-w-lg border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="border-b border-slate-200 px-6 py-4">
+      <div ref={containerRef} className="w-full max-w-lg overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="border-b border-slate-200 bg-slate-50/70 px-6 py-4">
           <h2 id="group-dialog-title" className={DIALOG_TITLE}>{title}</h2>
         </div>
         {legacyOnboarding ? <>

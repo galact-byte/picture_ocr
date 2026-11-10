@@ -37,6 +37,52 @@ interface PointerPosition {
   y: number;
 }
 
+interface AddItemBarProps {
+  onAddItem: (label: string) => void;
+  draftRef: React.MutableRefObject<string>;
+}
+
+const AddItemBar: React.FC<AddItemBarProps> = React.memo(({ onAddItem, draftRef }) => {
+  const [label, setLabel] = useState(draftRef.current);
+
+  const handleAdd = () => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    onAddItem(trimmed);
+    draftRef.current = '';
+    setLabel('');
+  };
+
+  return (
+    <>
+      <input
+        type="text"
+        value={label}
+        onChange={(event) => {
+          draftRef.current = event.target.value;
+          setLabel(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') handleAdd();
+        }}
+        placeholder="添加自定义检查项..."
+        className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-slate-300 bg-white px-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:basis-0"
+      />
+      <button
+        type="button"
+        onClick={handleAdd}
+        disabled={!label.trim()}
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-blue-300 bg-blue-50 px-5 text-base font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        添加
+      </button>
+    </>
+  );
+});
+
 const ITEM_AUTO_SCROLL_EDGE_PX = 80;
 const ITEM_AUTO_SCROLL_MAX_SPEED_PX = 18;
 
@@ -53,13 +99,13 @@ const ContentArea: React.FC = () => {
   const { addImageAndSave, removeImageAndSave, projectId } = useAppContext();
   const commandLibrary = useAssessmentCommandLibrary();
   const [commandItemId, setCommandItemId] = useState<string | null>(null);
-  const [newItemLabel, setNewItemLabel] = useState('');
   const [commandAssetId, setCommandAssetId] = useState<string | null>(null);
   const [pasteTargetItemId, setPasteTargetItemId] = useState<string | null>(null);
   const [isSortingItems, setIsSortingItems] = useState(false);
   const [dragItemId, setDragItemId] = useState<string | null>(null);
   const [previewItemIds, setPreviewItemIds] = useState<string[] | null>(null);
   const [dragOverlay, setDragOverlay] = useState<DragOverlayState | null>(null);
+  const addItemDraftRef = useRef('');
   const dragStateRef = useRef<ItemDragState | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
   const previewItemIdsRef = useRef<string[] | null>(null);
@@ -377,11 +423,20 @@ const ContentArea: React.FC = () => {
     window.addEventListener('pointercancel', handlePointerCancel);
   };
 
+  const handleAddItem = useCallback((label: string) => {
+    const currentAsset = activeAssetRef.current;
+    if (!currentAsset) return;
+    dispatch({
+      type: 'ADD_ITEM',
+      payload: { assetId: currentAsset.id, label },
+    });
+  }, [dispatch]);
+
   if (!activeAssetId || !activeAsset) {
     return (
-      <main tabIndex={-1} aria-label="证据工作区" className="flex min-h-0 min-w-0 flex-1 items-center justify-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px]">
-        <div className="text-center text-gray-400">
-          <svg className="mx-auto mb-4 h-16 w-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <main tabIndex={-1} aria-label="证据工作区" className="flex min-h-0 min-w-0 flex-1 items-center justify-center bg-[#f8fafc]">
+        <div className="text-center text-slate-400">
+          <svg className="mx-auto mb-4 h-16 w-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           <p className="text-base">请从左侧选择一个资产查看检查项</p>
@@ -389,15 +444,6 @@ const ContentArea: React.FC = () => {
       </main>
     );
   }
-
-  const handleAddItem = () => {
-    if (!newItemLabel.trim()) return;
-    dispatch({
-      type: 'ADD_ITEM',
-      payload: { assetId: activeAsset.id, label: newItemLabel.trim() },
-    });
-    setNewItemLabel('');
-  };
 
   const enterSortingMode = () => {
     setPasteTargetItemId(null);
@@ -416,31 +462,59 @@ const ContentArea: React.FC = () => {
       .filter((item): item is (typeof activeAsset.items)[number] => !!item)
     : activeAsset.items;
 
+  const requiredItems = activeAsset.items.filter((item) => item.required);
+  const missingRequiredCount = requiredItems.filter((item) => item.images.length === 0).length;
+  const completedRequiredCount = requiredItems.length - missingRequiredCount;
+  const requiredProgressPercent = requiredItems.length > 0 ? Math.round((completedRequiredCount / requiredItems.length) * 100) : 100;
+
   return (
-    <main ref={mainContentRef} tabIndex={-1} aria-label="证据工作区" className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-slate-100 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] [overflow-wrap:anywhere]">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8">
-        <div className="mb-8">
-          <h2 className="text-4xl font-extrabold tracking-tight text-slate-950">{activeAsset.name}</h2>
-          <div className="mt-4 flex flex-wrap items-center gap-4 text-base text-slate-600">
+    <main ref={mainContentRef} tabIndex={-1} aria-label="证据工作区" className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[#f8fafc] [overflow-wrap:anywhere]">
+      <div className="mx-auto max-w-6xl px-4 py-7 sm:px-8">
+        <div className="mb-6 border-b border-slate-200/90 pb-5">
+          <h2 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">{activeAsset.name}</h2>
+          <div className="mt-3.5 flex flex-wrap items-center gap-3 text-sm text-slate-600">
             {activeCategory && (
-              <span className="inline-flex items-center gap-1.5">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
+                <svg className="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M5 7v10a2 2 0 002 2h10a2 2 0 002-2V7M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2" />
                 </svg>
                 {activeCategory.name}
               </span>
             )}
-            <span>·</span>
-            <span>总计 {activeAsset.items.length} 项检查</span>
-            <span>·</span>
-            <span className="text-red-500">{activeAsset.items.filter((item) => item.required).length} 项必填</span>
+            <span className="text-slate-300">·</span>
+            <span className="tabular-nums">总计 {activeAsset.items.length} 项检查</span>
+            {requiredItems.length > 0 && (
+              <div
+                className={`inline-flex items-center gap-2.5 rounded-full border px-3 py-1 text-xs font-medium shadow-2xs ${
+                  missingRequiredCount === 0
+                    ? 'border-emerald-200 bg-emerald-50/90 text-emerald-700'
+                    : 'border-slate-200/95 bg-white text-slate-700'
+                }`}
+              >
+                <span className="text-slate-500">必填进度</span>
+                <span className="h-2 w-24 overflow-hidden rounded-full bg-slate-200/80">
+                  <span
+                    className={`block h-full rounded-full transition-all duration-300 ${
+                      missingRequiredCount === 0 ? 'bg-emerald-500' : 'bg-blue-500'
+                    }`}
+                    style={{ width: `${requiredProgressPercent}%` }}
+                  />
+                </span>
+                <span className="font-semibold text-slate-800 tabular-nums">
+                  {completedRequiredCount}/{requiredItems.length}
+                </span>
+                <span className={missingRequiredCount === 0 ? 'text-emerald-600' : 'text-amber-600 tabular-nums'}>
+                  {missingRequiredCount === 0 ? '已齐' : `待补 ${missingRequiredCount} 项`}
+                </span>
+              </div>
+            )}
           </div>
           {!isSortingItems && !pasteTargetItemId && (
             <p className="mt-3 text-sm text-amber-600">请先选择粘贴目标，再按 Ctrl+V 粘贴截图。</p>
           )}
         </div>
 
-        <div className="sticky top-0 z-10 mb-6 border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+        <div className="sticky top-0 z-10 mb-6 rounded-lg border border-slate-200/95 bg-white/95 p-3 shadow-[0_2px_6px_rgba(15,23,42,0.04)] backdrop-blur">
           {isSortingItems ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -452,45 +526,25 @@ const ContentArea: React.FC = () => {
               <button
                 type="button"
                 onClick={exitSortingMode}
-                className="min-h-11 bg-blue-600 px-5 text-base text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="min-h-11 rounded-md bg-blue-600 px-5 text-base font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 完成排序
               </button>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                value={newItemLabel}
-                onChange={(event) => setNewItemLabel(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') handleAddItem();
-                }}
-                placeholder="添加自定义检查项..."
-                className="min-h-11 min-w-0 flex-1 basis-full border border-gray-300 px-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:basis-0"
-              />
-              <button
-                type="button"
-                onClick={handleAddItem}
-                disabled={!newItemLabel.trim()}
-                className="inline-flex min-h-11 items-center gap-1.5 bg-blue-600 px-5 text-base text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                添加
-              </button>
+              <AddItemBar onAddItem={handleAddItem} draftRef={addItemDraftRef} />
               <button
                 type="button"
                 onClick={enterSortingMode}
-                className="min-h-11 border border-slate-300 bg-white px-4 text-base text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="min-h-11 rounded-md border border-slate-300 bg-white px-4 text-base font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 调整顺序
               </button>
               <button
                 type="button"
                 onClick={(event) => { event.currentTarget.focus(); setCommandItemId(null); setCommandAssetId(activeAsset.id); }}
-                className="inline-flex min-h-11 items-center gap-2 border border-slate-300 bg-white px-4 text-base text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="inline-flex min-h-11 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-base font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m4 6 6 6-6 6m10 0h6" />

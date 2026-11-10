@@ -71,10 +71,10 @@ const ProjectActions: React.FC<ProjectActionsProps> = ({ label, actions }) => {
         top: showBelow ? rect.bottom + 4 : undefined, bottom: showBelow ? undefined : window.innerHeight - rect.top + 4,
         maxHeight: Math.max(44, showBelow ? below : above) });
     }}>
-      <summary aria-label={label} className={`${LIST_ACTION_CLASS} cursor-pointer list-none border-slate-300 bg-white text-slate-700 hover:bg-slate-100`}>更多</summary>
-      <div style={position} className="z-30 overflow-y-auto rounded border border-slate-300 bg-white p-1 shadow-sm">
+      <summary aria-label={label} className={`${LIST_ACTION_CLASS} cursor-pointer list-none border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}>更多</summary>
+      <div style={position} className="z-30 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
         {actions.map(action => <button key={action.label} type="button" disabled={action.disabled} title={action.title}
-          className={`min-h-11 w-full px-3 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 ${action.danger ? 'border-t border-slate-200 text-red-700 hover:bg-red-50' : 'text-slate-700 hover:bg-slate-100'} ${action.className ?? ''}`}
+          className={`min-h-11 w-full rounded-md px-3 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 ${action.danger ? 'border-t border-slate-100 text-red-700 hover:bg-red-50' : 'text-slate-700 hover:bg-slate-100'} ${action.className ?? ''}`}
           onClick={() => { close(true); action.onClick(); }}>{action.label}</button>)}
       </div>
     </details>
