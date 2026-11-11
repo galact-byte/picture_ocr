@@ -23,6 +23,16 @@
 - 项目的 `profile`（报告标题、导出文件名前缀、单位字段名称和必填标志）属于 `ProjectDocument` 快照，必须随 `LOAD_PROJECT`、自动保存、摘要、ZIP/加密包导入导出和归档链路透传；旧文档缺少该字段时使用固定兼容配置，不从当前全局预设补写旧分类或资产。
 - 默认预设只影响新建项目；`ADD_CATEGORY` / `RENAME_CATEGORY` 必须通过 reducer，分类 ID 稳定，空名称原样拒绝，不提供删除分类 action。
 
+## 侧栏资产与材料顺序
+
+1. **范围**：`Sidebar` 只调整同一分类内资产（含材料）的相对顺序，复用 `ProjectDocument.assets` 数组顺序。
+2. **接口**：分发 `{ type: 'REORDER_ASSETS', payload: { categoryId: string, assetIds: string[] } }`；`assetIds` 是该分类当前全部资产 ID 的完整排列。
+3. **契约**：reducer 只替换目标分类在原数组中的槽位，其他分类位置、资产/检查项/图片对象、当前分类及当前资产保持；保存仍由 Context 负责。拖动过程只在 Sidebar 保存临时状态。
+4. **校验**：未知分类、缺项、多项、重复或未知 ID 均返回原 state；顺序相同也不触发保存。Escape、pointercancel、丢失捕获、窗口失焦和无有效落点均取消拖动。
+5. **交互**：名称用于打开/重命名；左侧图标作为专用手柄，悬停显示抓手和点阵。移动至少 6px 才开始拖动，被拖条目逐帧跟随指针，邻项用 160ms 位移动画提前让位，松手或取消后归位；此位移仅用于排序反馈，不用于普通悬停。命中使用拖动前的行布局并叠加实时滚动偏移，避免动画后的矩形引起落点抖动。蓝色插入线位于拖动条目下层，边缘滚动按距离与帧间时间渐进加速；静止且无需滚动时停止逐帧循环。取消、窗口缩放或卸载清除临时位移与帧任务；减少动态效果时保留指针直接跟随，禁用让位与归位动画。手柄可用上下方向键排序，指针拖动期间不同时执行键盘排序。单条分类禁用排序。
+6. **验证**：`node scripts/verify-sidebar-asset-order.mjs` 检查完整排列、不可变性与过期输入；构建后 `node scripts/verify-project-list-ui.mjs --workspace` 验证 Web/Electron 真实鼠标排序、名称防误触、取消、跨分类保护、长列表滚动、窄屏材料排序，以及刷新后顺序和图片解码。局部定位可追加 `--asset-order-only`。
+7. **反例**：只传被拖动的 ID 或在排序组件内调用 `saveProject` 会破坏完整性/保存队列；应提交完整排列并沿用 Context 持久化流程。
+
 ## 检查项顺序变更约定
 
 - 检查项的创建与排序都必须通过 `appReducer`：手动 `ADD_ITEM` 创建 `required: true` 的项并插入 `items` 首位；排序分发 `{ type: 'REORDER_ITEMS', payload: { assetId, itemIds } }`。

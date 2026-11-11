@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAppState, useDispatch } from '../context/AppContext';
 import { getAssetsForCategory } from '../context/appReducer';
 import { useConfirmDialog } from './ConfirmDialog';
@@ -64,6 +64,48 @@ function renderCategoryIcon(categoryId: string): React.ReactNode {
   return <path {...commonProps} d="M4 6h16v12H4zM8 10h8m-8 4h5" />;
 }
 
+interface AssetDropTarget {
+  assetId: string;
+  targetId: string | null;
+  after: boolean;
+}
+
+interface AssetDragRow {
+  element: HTMLElement;
+  id: string;
+  top: number;
+  height: number;
+}
+
+interface AssetDragSession extends AssetDropTarget {
+  categoryId: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  x: number;
+  y: number;
+  moved: boolean;
+  scrollTop: number;
+  maxScrollTop: number;
+  rows: AssetDragRow[];
+  reduceMotion: boolean;
+  lastFrame: number;
+}
+
+function animateAssetRows(previousRects: Map<HTMLElement, DOMRect>): void {
+  const offsets = Array.from(previousRects, ([element, previous]) => ({
+    element,
+    delta: element.isConnected ? previous.top - element.getBoundingClientRect().top : 0,
+  }));
+  for (const { element, delta } of offsets) {
+    if (Math.abs(delta) <= 0.5) continue;
+    element.animate(
+      [{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }],
+      { duration: 160, easing: 'cubic-bezier(0.2, 0, 0, 1)' }
+    );
+  }
+}
+
 interface SidebarProps {
   compact?: boolean;
   onClose?: () => void;
@@ -88,6 +130,12 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
   const [isResizing, setIsResizing] = useState(false);
   const sidebarWidthRef = useRef(sidebarWidth);
   const resizeSessionRef = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null);
+  const assetListRef = useRef<HTMLDivElement>(null);
+  const assetInsertionRef = useRef<HTMLSpanElement>(null);
+  const assetDragRef = useRef<AssetDragSession | null>(null);
+  const assetDragFrameRef = useRef<number | null>(null);
+  const assetSettleRectsRef = useRef<Map<HTMLElement, DOMRect> | null>(null);
+  const [assetDropTarget, setAssetDropTarget] = useState<AssetDropTarget | null>(null);
   const { confirm, dialog } = useConfirmDialog();
 
   useEffect(() => {
@@ -238,12 +286,175 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
     }
   };
 
+  const clearAssetDrag = useCallback((mode: 'cancel' | 'commit' | 'discard' = 'cancel') => {
+    if (assetDragFrameRef.current !== null) cancelAnimationFrame(assetDragFrameRef.current);
+    assetDragFrameRef.current = null;
+    if (assetInsertionRef.current) assetInsertionRef.current.style.display = 'none';
+    if (mode === 'discard') assetSettleRectsRef.current = null;
+    const drag = assetDragRef.current;
+    if (drag) {
+      const visibleRects = new Map(drag.rows.map(({ element }) => [element, element.getBoundingClientRect()]));
+      for (const { element } of drag.rows) {
+        element.style.transform = '';
+        element.style.transition = '';
+        element.style.zIndex = '';
+        element.style.willChange = '';
+      }
+      if (!drag.reduceMotion && drag.moved) {
+        if (mode === 'cancel') animateAssetRows(visibleRects);
+        else if (mode === 'commit') assetSettleRectsRef.current = visibleRects;
+      }
+    }
+    assetDragRef.current = null;
+    setAssetDropTarget(null);
+  }, []);
+  const cancelAssetDrag = useCallback(() => clearAssetDrag(), [clearAssetDrag]);
+
+  useLayoutEffect(() => {
+    const previous = assetSettleRectsRef.current;
+    assetSettleRectsRef.current = null;
+    if (previous) animateAssetRows(previous);
+  }, [assets]);
+
+  const updateAssetDropTarget = useCallback(() => {
+    assetDragFrameRef.current = null;
+    const drag = assetDragRef.current;
+    const list = assetListRef.current;
+    if (!drag?.moved || !list) return;
+    const bounds = list.getBoundingClientRect();
+    const inside = drag.x >= bounds.left && drag.x <= bounds.right && drag.y >= bounds.top && drag.y <= bounds.bottom;
+    const now = performance.now();
+    const elapsed = Math.min(32, now - drag.lastFrame);
+    drag.lastFrame = now;
+    let speed = 0;
+    if (inside) {
+      if (drag.y < bounds.top + 40) speed = -480 * (1 - (drag.y - bounds.top) / 40);
+      else if (drag.y > bounds.bottom - 40) speed = 480 * (1 - (bounds.bottom - drag.y) / 40);
+    }
+    if (speed) list.scrollTop = Math.max(0, Math.min(drag.maxScrollTop, list.scrollTop + speed * elapsed / 1000));
+    const scrollDelta = list.scrollTop - drag.scrollTop;
+    // 使用拖动前的布局命中落点，避免让位动画反过来改变命中区域而来回抖动。
+    const row = inside ? drag.rows.find((candidate) => drag.y + scrollDelta >= candidate.top - 2 && drag.y + scrollDelta <= candidate.top + candidate.height + 2) : undefined;
+    drag.targetId = row && row.id !== drag.assetId ? row.id : null;
+    drag.after = !!row && drag.y + scrollDelta > row.top + row.height / 2;
+    const from = drag.rows.findIndex((candidate) => candidate.id === drag.assetId);
+    const source = drag.rows[from];
+    const preview = drag.rows.filter((candidate) => candidate !== source);
+    const targetIndex = preview.findIndex((candidate) => candidate.id === drag.targetId);
+    const to = targetIndex < 0 ? from : targetIndex + (drag.after ? 1 : 0);
+    preview.splice(to, 0, source);
+    let top = drag.rows[0].top;
+    const gap = drag.rows.length > 1 ? drag.rows[1].top - drag.rows[0].top - drag.rows[0].height : 4;
+    for (const candidate of preview) {
+      const offset = candidate === source ? drag.y - drag.startY + scrollDelta : top - candidate.top;
+      candidate.element.style.transform = `translateY(${offset}px)`;
+      candidate.element.style.transition = candidate === source || drag.reduceMotion ? 'none' : 'transform 160ms cubic-bezier(0.2, 0, 0, 1)';
+      candidate.element.style.zIndex = candidate === source ? '10' : '';
+      candidate.element.style.willChange = 'transform';
+      if (candidate === source && assetInsertionRef.current) {
+        const marker = assetInsertionRef.current;
+        const markerTop = top - scrollDelta - bounds.top - 2;
+        marker.style.display = drag.targetId && markerTop >= 0 && markerTop <= list.clientHeight ? 'block' : 'none';
+        marker.style.top = `${markerTop}px`;
+      }
+      top += candidate.height + gap;
+    }
+    setAssetDropTarget((previous) => previous?.assetId === drag.assetId && previous.targetId === drag.targetId && previous.after === drag.after
+      ? previous : { assetId: drag.assetId, targetId: drag.targetId, after: drag.after });
+    if (speed < 0 ? list.scrollTop > 0 : speed > 0 && list.scrollTop < drag.maxScrollTop) {
+      assetDragFrameRef.current = requestAnimationFrame(updateAssetDropTarget);
+    }
+  }, []);
+
+  const draggingAsset = assetDropTarget !== null;
+  useEffect(() => {
+    if (!draggingAsset) return;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('blur', cancelAssetDrag);
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener('blur', cancelAssetDrag);
+    };
+  }, [draggingAsset, cancelAssetDrag]);
+
+  useEffect(() => {
+    const cancel = () => clearAssetDrag('discard');
+    window.addEventListener('resize', cancel);
+    return () => { window.removeEventListener('resize', cancel); clearAssetDrag('discard'); };
+  }, [clearAssetDrag]);
+
+  const handleAssetPointerDown = (event: React.PointerEvent<HTMLButtonElement>, assetId: string, categoryId: string) => {
+    if (event.button !== 0 || !event.isPrimary || assetDragRef.current) return;
+    const list = assetListRef.current;
+    if (!list) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.focus();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const rows = Array.from(list.querySelectorAll<HTMLElement>('[data-asset-id]')).filter((element) => element.dataset.categoryId === categoryId).map((element) => {
+      element.getAnimations().forEach((animation) => animation.cancel());
+      const rect = element.getBoundingClientRect();
+      return { element, id: element.dataset.assetId!, top: rect.top, height: rect.height };
+    });
+    assetSettleRectsRef.current = null;
+    assetDragRef.current = { assetId, categoryId, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY, moved: false, targetId: null, after: false, scrollTop: list.scrollTop, maxScrollTop: Math.max(0, list.scrollHeight - list.clientHeight), rows, reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches, lastFrame: performance.now() };
+  };
+
+  const handleAssetPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = assetDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) >= 6) drag.moved = true;
+    if (drag.moved && assetDragFrameRef.current === null) {
+      drag.lastFrame = performance.now();
+      assetDragFrameRef.current = requestAnimationFrame(updateAssetDropTarget);
+    }
+  };
+
+  const handleAssetPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = assetDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    if (assetDragFrameRef.current !== null) cancelAnimationFrame(assetDragFrameRef.current);
+    updateAssetDropTarget();
+    const previousIds = getAssetsForCategory(assets, drag.categoryId).map((asset) => asset.id);
+    const assetIds = previousIds.filter((id) => id !== drag.assetId);
+    const targetIndex = drag.targetId ? assetIds.indexOf(drag.targetId) : -1;
+    if (drag.moved && targetIndex >= 0) assetIds.splice(targetIndex + (drag.after ? 1 : 0), 0, drag.assetId);
+    const commit = drag.moved && targetIndex >= 0 && assetIds.some((id, index) => id !== previousIds[index]);
+    clearAssetDrag(commit ? 'commit' : 'cancel');
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (commit) dispatch({ type: 'REORDER_ASSETS', payload: { categoryId: drag.categoryId, assetIds } });
+  };
+
+  const handleAssetSortKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, assetId: string, categoryId: string) => {
+    if (event.key === 'Escape' && assetDragRef.current) {
+      event.preventDefault(); event.stopPropagation(); cancelAssetDrag();
+      return;
+    }
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault(); event.stopPropagation();
+    if (assetDragRef.current) return;
+    const assetIds = getAssetsForCategory(assets, categoryId).map((asset) => asset.id);
+    const from = assetIds.indexOf(assetId);
+    const to = from + (event.key === 'ArrowUp' ? -1 : 1);
+    if (from < 0 || to < 0 || to >= assetIds.length) return;
+    [assetIds[from], assetIds[to]] = [assetIds[to], assetIds[from]];
+    dispatch({ type: 'REORDER_ASSETS', payload: { categoryId, assetIds } });
+  };
+
   return (
     <aside
       className={`relative shrink-0 border-r border-slate-300/80 bg-[#eaeff5] flex h-full text-slate-700 shadow-[inset_-1px_0_0_rgba(15,23,42,0.03)] ${isResizing ? 'select-none' : ''}`}
       style={{ width: compact ? '100%' : sidebarWidth }}
     >
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto scroll-smooth">
+      <div ref={assetListRef} className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto ${draggingAsset ? 'scroll-auto select-none' : 'scroll-smooth'}`}>
         <div className="flex items-center gap-2.5 border-b border-slate-300/70 bg-[#e2e8f0]/60 px-5 py-4">
         <svg className="h-5 w-5 shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -306,7 +517,8 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setAddingToCategoryId(isAdding ? null : cat.id);
+                  setAddingToCategoryId(isAdding && isExpanded ? null : cat.id);
+                  setExpandedCategories((prev) => new Set(prev).add(cat.id));
                   setNewAssetName('');
                 }}
                 className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded p-1 text-slate-500 transition-colors hover:text-blue-600 lg:min-h-0 lg:min-w-0"
@@ -364,15 +576,18 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                 {catAssets.map((asset) => (
                   <div
                     key={asset.id}
+                    data-asset-id={asset.id}
+                    data-category-id={cat.id}
                     onClick={() => {
                       dispatch({ type: 'SET_ACTIVE_CATEGORY', payload: cat.id });
                       dispatch({ type: 'SET_ACTIVE_ASSET', payload: asset.id });
                       onSelectAsset?.();
                     }}
-                    className={`group relative ml-7 mr-2.5 my-1 flex cursor-pointer items-center justify-between rounded-r-md border-l-2 px-3 py-2 text-sm transition-all duration-150 before:absolute before:-left-px before:top-1/2 before:h-px before:w-2.5
+                    className={`group relative ml-7 mr-2.5 my-1 flex cursor-pointer items-center justify-between rounded-r-md border-l-2 px-3 py-2 text-sm transition-colors duration-150 motion-reduce:transition-none before:absolute before:-left-px before:top-1/2 before:h-px before:w-2.5
+                      ${assetDropTarget?.assetId === asset.id ? 'cursor-grabbing bg-white ring-1 ring-blue-300 shadow-[0_2px_8px_rgba(15,23,42,0.12)]' : ''}
                       ${asset.id === activeAssetId
                         ? 'border-blue-600 bg-white font-semibold text-blue-700 shadow-2xs before:bg-blue-600'
-                        : 'border-slate-400/70 text-slate-600 before:bg-slate-400/70 hover:bg-white/60 hover:text-slate-950'
+                        : `border-slate-400/70 text-slate-600 before:bg-slate-400/70 hover:text-slate-950 ${assetDropTarget?.assetId === asset.id ? '' : 'hover:bg-white/60'}`
                       }`}
                   >
                     {renamingAssetId === asset.id ? (
@@ -394,13 +609,31 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                         className="flex items-center gap-2 min-w-0"
                         onDoubleClick={(e) => handleStartRename(asset.id, asset.name, e)}
                       >
-                        <svg className={`h-3.5 w-3.5 flex-shrink-0 ${asset.id === activeAssetId ? 'text-blue-600' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          {isFreestyle ? (
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4h8l2 2v14H6V6l2-2zm1 8h6m-6 4h6" />
-                          ) : (
-                            renderCategoryIcon(cat.id)
-                          )}
-                        </svg>
+                        <button
+                          type="button"
+                          aria-label={`拖动排序 ${asset.name}`}
+                          aria-keyshortcuts="ArrowUp ArrowDown"
+                          title="拖动排序，也可用上下方向键调整"
+                          disabled={catAssets.length < 2}
+                          onPointerDown={(event) => handleAssetPointerDown(event, asset.id, cat.id)}
+                          onPointerMove={handleAssetPointerMove}
+                          onPointerUp={handleAssetPointerUp}
+                          onPointerCancel={cancelAssetDrag}
+                          onLostPointerCapture={cancelAssetDrag}
+                          onKeyDown={(event) => handleAssetSortKeyDown(event, asset.id, cat.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          onDoubleClick={(event) => event.stopPropagation()}
+                          className="group/handle relative -mx-0.5 flex min-h-11 min-w-11 shrink-0 touch-none cursor-grab items-center justify-center rounded text-slate-400 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 active:cursor-grabbing disabled:cursor-default lg:min-h-0 lg:min-w-0 lg:h-5 lg:w-4.5"
+                        >
+                          <svg className={`h-3.5 w-3.5 ${catAssets.length > 1 ? 'group-hover/handle:opacity-0 group-focus-visible/handle:opacity-0' : ''} ${asset.id === activeAssetId ? 'text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            {isFreestyle ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4h8l2 2v14H6V6l2-2zm1 8h6m-6 4h6" />
+                            ) : renderCategoryIcon(cat.id)}
+                          </svg>
+                          {catAssets.length > 1 && <svg className="absolute h-3.5 w-3.5 opacity-0 group-hover/handle:opacity-100 group-focus-visible/handle:opacity-100" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" /><circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" /><circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
+                          </svg>}
+                        </button>
                         <button type="button" className="min-h-11 min-w-0 truncate text-left font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 lg:min-h-0"><span title={asset.name}>{asset.name}</span></button>
                         {/* Missing required indicator */}
                         {(() => {
@@ -441,6 +674,7 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
         );
       })}
       </div>
+      <span ref={assetInsertionRef} aria-hidden="true" className="pointer-events-none absolute left-7 right-2.5 z-[1] hidden h-0.5 bg-blue-500" />
       {dialog}
       <button
         type="button"

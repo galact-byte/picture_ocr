@@ -1,5 +1,17 @@
 import * as db from '../src/utils/db';
-import assessment from '../presets/dengbao.json';
+import { LEGACY_PROFILE } from '../src/utils/preset';
+
+const assessment = {
+  version: 1, name: '工作台回归模板', profile: LEGACY_PROFILE,
+  categories: [
+    ['cat-physical', '物理环境'], ['cat-network', '网络设备'], ['cat-security', '安全设备'],
+    ['cat-host', '主机设备'], ['cat-system-mgmt', '系统管理'], ['cat-app', '应用系统'],
+    ['cat-management', '安全管理制度', 'freestyle'], ['cat-other', '其他'],
+  ].map(([id, name, type = 'checklist'], index) => ({
+    id, name, type, order: index + 1,
+    defaultItems: type === 'checklist' ? ['现场截图', '配置截图'].map((label, item) => ({ id: `${id}-photo-${item}`, label, required: true })) : [],
+  })),
+};
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -28,6 +40,52 @@ export async function seed() {
   window.location.hash = '/project/workspace-qa';
   await until(() => document.querySelector('aside') && document.querySelector('main h2'), '工作台装配');
 }
+export async function prepareAssetOrder() {
+  const source = await db.loadProject('workspace-qa');
+  const doc = { ...source, id: 'asset-order-qa', assets: [
+    { ...source.assets[0], id: 'sort-first', name: '排序资产一', items: source.assets[0].items.map(item => ({ ...item, images: item.images.map(image => ({ ...image, data: picture })) })) },
+    { id: 'sort-other', categoryId: 'cat-physical', name: '其他分类资产', items: [] },
+    ...Array.from({ length: 15 }, (_, index) => ({ id: `sort-${index + 2}`, categoryId: 'cat-network', name: `排序资产${index + 2}`, items: [] })),
+    ...['a', 'b'].map(id => ({ id: `material-${id}`, categoryId: 'cat-management', name: `排序材料${id}`, items: [] })),
+  ] };
+  await db.saveProject(doc);
+  window.location.hash = '/project/asset-order-qa';
+  await until(() => document.querySelector('aside [data-asset-id="sort-other"]'), '排序工作台');
+  await showAssetOrderCategory('网络设备');
+  document.querySelector('[data-asset-id="sort-first"] span[title]').closest('button').click();
+  await until(() => document.querySelector('main h2')?.textContent === '排序资产一', '选择原图片资产');
+}
+export async function showAssetOrderCategory(name) {
+  const toggle = button('分类导航');
+  if (toggle?.getClientRects().length && !navigationOpen()) toggle.click();
+  const category = document.querySelector(`aside button[title="${name}"]`);
+  assert(category, `分类存在：${name}`);
+  if (!category.closest('div.border-b').querySelector('[data-asset-id]')) { category.click(); await pause(60); }
+}
+export async function assetOrderPoint(id, handle = true, after = false) {
+  const row = document.querySelector(`aside [data-asset-id="${id}"]`);
+  assert(row, `资产存在：${id}`);
+  row.scrollIntoView({ block: 'nearest', behavior: 'instant' }); await pause(100);
+  const target = handle ? row.querySelector('button[aria-label^="拖动排序"]') : row.querySelector('span[title]').closest('button');
+  const rect = target.getBoundingClientRect(), bounds = row.getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: handle ? rect.top + rect.height / 2 : after ? bounds.bottom - 4 : bounds.top + 4 };
+}
+export function assetOrderSnapshot(categoryId = 'cat-network') {
+  return [...document.querySelectorAll(`aside [data-category-id="${categoryId}"]`)].map(row => row.dataset.assetId);
+}
+export async function checkAssetOrder(expected, categoryId = 'cat-network') {
+  await until(() => JSON.stringify(assetOrderSnapshot(categoryId)) === JSON.stringify(expected), '界面排序');
+  await until(async () => JSON.stringify((await db.loadProject('asset-order-qa')).assets.filter(asset => asset.categoryId === categoryId).map(asset => asset.id)) === JSON.stringify(expected), '排序实际落库');
+  const doc = await db.loadProject('asset-order-qa');
+  const item = doc.assets.find(asset => asset.id === 'sort-first').items[0];
+  assert(await db.resolveImageData(doc.id, item.images[0]) === picture, '排序保持原图片字节');
+  assert(doc.assets.find(asset => asset.id === 'sort-other').categoryId === 'cat-physical', '排序不改变其他分类归属');
+}
+export async function finishAssetOrder() {
+  window.location.hash = '/project/workspace-qa';
+  await until(() => document.querySelector('main h2')?.textContent === '核心交换机', '回到工作台原场景');
+}
+
 export async function categoryNavigation() {
   const errors = [];
   const onError = event => errors.push(event.error?.stack || event.message);
@@ -72,6 +130,38 @@ export async function categoryNavigation() {
   } finally {
     window.removeEventListener('error', onError);
   }
+}
+export async function collapsedAddControls() {
+  const toggle = button('分类导航');
+  if (toggle?.getClientRects().length && !navigationOpen()) toggle.click();
+  await until(() => document.querySelector('aside button[title="网络设备"]')?.getClientRects().length, '可见分类导航');
+  const before = (await db.loadProject('workspace-qa')).assets.length;
+  for (const name of ['网络设备', '安全设备', '安全管理制度']) {
+    const category = document.querySelector(`aside button[title="${name}"]`);
+    assert(category, `存在分类：${name}`);
+    const root = category.closest('div.border-b');
+    const expanded = () => !!root.querySelector('div.py-1\\.5');
+    category.click(); await pause(50);
+    if (expanded()) { category.click(); await pause(50); }
+    assert(!expanded(), `${name}处于折叠状态`);
+    const add = root.querySelector('button[title^="添加"]');
+    add.click(); await pause(50);
+    let field = root.querySelector('input[placeholder]');
+    assert(field?.getClientRects().length, `${name}折叠时点击加号必须展开并显示新增输入框`);
+    assert(document.activeElement === field, `${name}新增输入框自动获得焦点`);
+    assert(field.value === '', `${name}新增输入框初始为空`);
+    input(field, '未提交的名称'); await pause(50);
+    category.click(); await pause(50);
+    assert(!expanded(), `${name}新增草稿可随分类收起`);
+    add.click(); await pause(50);
+    field = root.querySelector('input[placeholder]');
+    assert(field?.getClientRects().length && document.activeElement === field, `${name}收起草稿后点击加号仍可重新开始新增`);
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await until(() => !root.querySelector('input[placeholder]'), '取消新增');
+  }
+  assert((await db.loadProject('workspace-qa')).assets.length === before, '取消新增不会生成资产或材料');
+  await categoryNavigation();
+  return '折叠的已有资产/空分类/材料分类点击加号可见且聚焦，收起草稿可重新新增，取消不创建条目';
 }
 export async function draftAndThumbnailControls() {
   const failures = [];

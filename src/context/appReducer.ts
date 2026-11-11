@@ -29,6 +29,7 @@ export type AppAction =
   | { type: 'RENAME_CATEGORY'; payload: { categoryId: string; name: string } }
   | { type: 'ADD_ASSET'; payload: { categoryId: string; assetName: string } }
   | { type: 'REMOVE_ASSET'; payload: { assetId: string } }
+  | { type: 'REORDER_ASSETS'; payload: { categoryId: string; assetIds: string[] } }
   | { type: 'RENAME_ASSET'; payload: { assetId: string; newName: string } }
   | { type: 'SET_ACTIVE_CATEGORY'; payload: string }
   | { type: 'SET_ACTIVE_ASSET'; payload: string | null }
@@ -172,6 +173,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           a.id === assetId ? { ...a, name: newName } : a
         ),
       };
+    }
+
+    case 'REORDER_ASSETS': {
+      const { categoryId, assetIds } = action.payload;
+      if (!state.categories.some((category) => category.id === categoryId)) return state;
+      const categoryAssets = state.assets.filter((asset) => asset.categoryId === categoryId);
+      const byId = new Map(categoryAssets.map((asset) => [asset.id, asset]));
+      if (assetIds.length !== categoryAssets.length || new Set(assetIds).size !== assetIds.length || assetIds.some((id) => !byId.has(id))) return state;
+      if (categoryAssets.every((asset, index) => asset.id === assetIds[index])) return state;
+      let index = 0;
+      return { ...state, assets: state.assets.map((asset) => asset.categoryId === categoryId ? byId.get(assetIds[index++]) ?? asset : asset) };
     }
 
     case 'ADD_ITEM': {
