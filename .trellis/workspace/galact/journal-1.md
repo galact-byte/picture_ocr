@@ -357,3 +357,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 11: 侧栏排序与 v0.12.2 发布
+<!-- trellis-session: v=2 fp=b82e7d23f18a1c23 -->
+
+**Date**: 2026-11-11
+**Task**: 侧栏排序与 v0.12.2 发布
+**Branch**: `main`
+
+### Summary
+
+完成资产/材料手柄排序、跟随让位与折叠分类新增修复；双端工作台各 59 项、目录 70 项、启动器 31 项、构建及 PWA 通过。核对 42 个历史 Release，统一 30 个正文并回读名称与附件；版本更新为 0.12.2。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `47ed47e` | feat: 支持侧栏资产拖动排序并发布 v0.12.2 |
+
+### Status
+
+[OK] **Completed**
