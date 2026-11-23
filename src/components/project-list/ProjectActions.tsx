@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LIST_ACTION_CLASS } from './projectListUi';
+import { CARD_ACTION_CLASS } from './projectListUi';
 
 export interface ProjectListAction {
   label: string;
@@ -71,10 +71,10 @@ const ProjectActions: React.FC<ProjectActionsProps> = ({ label, actions }) => {
         top: showBelow ? rect.bottom + 4 : undefined, bottom: showBelow ? undefined : window.innerHeight - rect.top + 4,
         maxHeight: Math.max(44, showBelow ? below : above) });
     }}>
-      <summary aria-label={label} className={`${LIST_ACTION_CLASS} cursor-pointer list-none border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}>更多</summary>
-      <div style={position} className="z-30 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+      <summary aria-label={label} className={`${CARD_ACTION_CLASS} cursor-pointer list-none border-transparent bg-transparent text-[#7b8496] hover:bg-[#edf1f6] hover:text-[#1c2230]`}>更多</summary>
+      <div style={position} className="z-30 overflow-y-auto rounded-[12px] border border-[#e3e7ef] bg-white p-1.5 shadow-[0_10px_28px_rgba(15,23,42,0.11)]">
         {actions.map(action => <button key={action.label} type="button" disabled={action.disabled} title={action.title}
-          className={`min-h-11 w-full rounded-md px-3 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 ${action.danger ? 'border-t border-slate-100 text-red-700 hover:bg-red-50' : 'text-slate-700 hover:bg-slate-100'} ${action.className ?? ''}`}
+          className={`min-h-11 w-full rounded-[8px] px-3 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] disabled:cursor-not-allowed disabled:opacity-45 ${action.danger ? 'mt-0.5 border-t border-[#f0f3f8] text-[#c53030] hover:bg-[#fff5f5]' : 'text-[#3b4454] hover:bg-[#f4f6fa]'} ${action.className ?? ''}`}
           onClick={() => { close(true); action.onClick(); }}>{action.label}</button>)}
       </div>
     </details>

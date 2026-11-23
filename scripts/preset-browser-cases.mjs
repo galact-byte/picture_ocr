@@ -385,7 +385,8 @@ export async function onboardingGeneric() {
 }
 export async function onboardingLayout() {
   assert(document.documentElement.scrollWidth<=innerWidth,'引导不横向溢出');
-  for(const el of dialog().querySelectorAll('button')) {const r=el.getBoundingClientRect();assert(r.height>=44 && r.left>=0 && r.right<=innerWidth,'引导按钮完整且可触控');}
+  await until(() => [...dialog().querySelectorAll('button')].every(el => el.getBoundingClientRect().height >= 44), '引导按钮完成布局并达到 44px');
+  for(const el of dialog().querySelectorAll('button')) {const r=el.getBoundingClientRect();assert(r.height>=44 && r.left>=0 && r.right<=innerWidth,`引导按钮完整且可触控：${JSON.stringify({text:el.textContent,height:r.height,left:r.left,right:r.right,width:innerWidth})}`);}
   return '旧模板引导无溢出且按钮完整';
 }
 export async function layout() {

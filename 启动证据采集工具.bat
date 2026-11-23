@@ -25,6 +25,7 @@ if not "%SERVER_EXIT_CODE%"=="0" goto failed
 goto serve
 
 :rebuild
+set /p "WEB_BUILD_HASH="<"node_modules\.cache\picture-ocr-web-build.pending"
 echo [INFO] Web build inputs changed or build is missing. Rebuilding...
 where npm.cmd >nul 2>&1
 if errorlevel 1 (
@@ -32,16 +33,23 @@ if errorlevel 1 (
   echo [ERROR] npm was not found. Install Node.js or use the prebuilt Web ZIP.
   goto failed
 )
-if not exist "node_modules\.bin\tsc.cmd" (
-  set "SERVER_EXIT_CODE=1"
-  echo [ERROR] Build dependencies are missing. Run npm ci in this folder first.
+if not exist "node_modules\.bin\tsc.cmd" goto install
+if not exist "node_modules\.bin\vite.cmd" goto install
+goto build
+
+:install
+echo [INFO] Build dependencies are missing. Installing with npm ci --include=dev...
+call npm.cmd ci --include=dev
+set "SERVER_EXIT_CODE=%ERRORLEVEL%"
+if not "%SERVER_EXIT_CODE%"=="0" (
+  echo [ERROR] Dependency installation failed. Check the npm error above.
+  echo [INFO] Retry this launcher, or run npm ci --include=dev in this folder.
   goto failed
 )
-if not exist "node_modules\.bin\vite.cmd" (
-  set "SERVER_EXIT_CODE=1"
-  echo [ERROR] Build dependencies are missing. Run npm ci in this folder first.
-  goto failed
-)
+if not exist "node_modules\.bin\tsc.cmd" goto dependencies_missing
+if not exist "node_modules\.bin\vite.cmd" goto dependencies_missing
+
+:build
 call npm.cmd run build
 set "SERVER_EXIT_CODE=%ERRORLEVEL%"
 if not "%SERVER_EXIT_CODE%"=="0" goto failed
@@ -50,11 +58,20 @@ if not exist "dist\service-worker.js" (
   echo [ERROR] Build did not produce dist\service-worker.js.
   goto failed
 )
-move /y "node_modules\.cache\picture-ocr-web-build.pending" "node_modules\.cache\picture-ocr-web-build.sha256" >nul
+if not exist "node_modules\.cache" mkdir "node_modules\.cache"
+>"node_modules\.cache\picture-ocr-web-build.sha256" echo %WEB_BUILD_HASH%
 if errorlevel 1 (
   set "SERVER_EXIT_CODE=1"
   goto failed
 )
+del /q "node_modules\.cache\picture-ocr-web-build.pending" >nul 2>&1
+goto serve
+
+:dependencies_missing
+set "SERVER_EXIT_CODE=1"
+echo [ERROR] npm finished but build dependencies are still missing.
+echo [INFO] Run npm ci --include=dev in this folder and check its output.
+goto failed
 
 :serve
 if not exist "dist\index.html" (

@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { prioritizeLanAddresses } from '../utils/lanBridge';
 import type { LanAddress, LanBridge, LanCollectorSnapshot } from '../utils/lanBridge';
 import { BUTTON_DANGER, BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_CLOSE, DIALOG_DESCRIPTION, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE } from './dialogStyles';
+import { useDialogEscape } from '../hooks/useDialogEscape';
 
 interface LanCollectorDialogProps {
   open: boolean;
@@ -77,6 +78,8 @@ const LanCollectorDialog: React.FC<LanCollectorDialogProps> = ({ open, snapshot,
   const handleChangeAddress = (address: string) => {
     setSelectedAddress(address);
   };
+
+  useDialogEscape(open, onClose, busy);
 
   if (!open) return null;
   return (

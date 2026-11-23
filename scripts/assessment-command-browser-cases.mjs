@@ -497,9 +497,10 @@ export function inlineLayout() {
   for (const el of panel.querySelectorAll('button')) assert(el.getBoundingClientRect().height >= 43, '行内按钮触控高度');
   const toggle = toggleFor('item-0');
   const label = toggle.previousElementSibling;
-  const badge = itemRoot().querySelector('span[title="必填"], span[title="选填"]');
+  const badge = itemRoot().querySelector('button[aria-pressed]');
   const center = el => { const rect = el.getBoundingClientRect(); return rect.top + rect.height / 2; };
-  assert(Math.abs(center(badge) - center(toggle.parentElement)) <= 1, '必填标记与标题区域垂直居中对齐');
+  assert(badge, '必填切换按钮存在');
+  assert(Math.abs(center(badge) - center(badge.parentElement)) <= 1, '必填切换与同行操作垂直居中对齐');
   if (toggle.getBoundingClientRect().left >= label.getBoundingClientRect().right) assert(Math.abs(center(label) - center(toggle)) <= 1, '同一行检查项标题和命令入口垂直居中对齐');
   const actions = itemRoot().querySelector('[aria-label="删除检查项"]').parentElement;
   if (actions.getBoundingClientRect().left > toggle.getBoundingClientRect().right) assert(Math.abs(center(actions) - center(toggle)) <= 1, '同一行右侧操作与标题居中对齐');

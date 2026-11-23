@@ -52,7 +52,8 @@ const checks = [
   ['migrateLegacyProjectIfNeeded 维护摘要', /PROJECT_SUMMARIES_STORE_NAME/.test(body('async function migrateLegacyProjectIfNeeded('))],
 
   ['DB 操作超时兜底常量', /DB_OP_TIMEOUT_MS\s*=/.test(src)],
-  ['withTimeout 包裹', /function withTimeout<T>/.test(src) && /'openDB'/.test(src)],
+  ['普通 DB 操作保留超时包装与定时器清理', /function withTimeout<T>/.test(src) && /clearTimeout\(timer\)/.test(body('function withTimeout<T>'))],
+  ['openDB 独立超时、取消与完成均清理资源', /setTimeout\([\s\S]*?DB_OPEN_TIMEOUT_MS\)/.test(upgradeBody) && /clearTimeout\(timer\)/.test(upgradeBody) && /removeEventListener\('abort', cancel\)/.test(upgradeBody) && /if \(settled\) \{ request\.result\.close\(\); return; \}/.test(upgradeBody)],
 ];
 
 let failed = 0;

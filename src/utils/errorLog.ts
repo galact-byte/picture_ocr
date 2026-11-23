@@ -5,6 +5,9 @@ import { getStorageEstimate } from './storageEstimate';
 /** 单条错误记录 */
 export interface ErrorLogEntry {
   time: string; // ISO
+  /** 旧记录可能没有版本；仅同版本、同构建记录进入当前反馈。 */
+  version?: string;
+  build?: string;
   type: 'error' | 'unhandledrejection' | 'manual';
   message: string;
   stack?: string;
@@ -27,11 +30,24 @@ function appVersion(): string {
   }
 }
 
+function appBuild(): string {
+  return typeof __APP_BUILD_ID__ === 'string' ? __APP_BUILD_ID__ : 'development';
+}
+
+function isErrorLogEntry(value: unknown): value is ErrorLogEntry {
+  return typeof value === 'object' && value !== null
+    && 'time' in value && typeof value.time === 'string'
+    && 'type' in value && (value.type === 'error' || value.type === 'unhandledrejection' || value.type === 'manual')
+    && 'message' in value && typeof value.message === 'string'
+    && (!('stack' in value) || typeof value.stack === 'string')
+    && (!('context' in value) || typeof value.context === 'string');
+}
+
 function safeParse(raw: string | null): ErrorLogEntry[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ErrorLogEntry[]) : [];
+    return Array.isArray(parsed) ? parsed.filter(isErrorLogEntry) : [];
   } catch {
     return [];
   }
@@ -39,10 +55,17 @@ function safeParse(raw: string | null): ErrorLogEntry[] {
 
 export function getErrorLog(): ErrorLogEntry[] {
   if (typeof localStorage === 'undefined') return [];
-  return safeParse(localStorage.getItem(STORAGE_KEY));
+  try {
+    return safeParse(localStorage.getItem(STORAGE_KEY))
+      .filter(entry => entry.version === appVersion() && entry.build === appBuild());
+  } catch {
+    return [];
+  }
 }
 
 export function clearErrorLog(): void {
+  lastSignature = '';
+  lastRecordedAt = 0;
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -52,17 +75,17 @@ export function clearErrorLog(): void {
 }
 
 /** 记录一条错误。相同 message 在去重窗口内只记一次，避免刷屏。 */
-export function recordError(entry: Omit<ErrorLogEntry, 'time'>): void {
+export function recordError(entry: Omit<ErrorLogEntry, 'time' | 'version' | 'build'>): void {
   const now = Date.now();
   const signature = `${entry.type}:${entry.message}`;
   if (signature === lastSignature && now - lastRecordedAt < DEDUP_WINDOW_MS) return;
   lastSignature = signature;
   lastRecordedAt = now;
 
-  const full: ErrorLogEntry = { time: new Date().toISOString(), ...entry };
+  const full: ErrorLogEntry = { ...entry, time: new Date().toISOString(), version: appVersion(), build: appBuild() };
   if (typeof localStorage !== 'undefined') {
     try {
-      const next = [full, ...getErrorLog()].slice(0, MAX_ENTRIES);
+      const next = [full, ...safeParse(localStorage.getItem(STORAGE_KEY))].slice(0, MAX_ENTRIES);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch {
       // 忽略：localStorage 写入失败（如隐私模式）不应再抛错造成循环
@@ -74,7 +97,7 @@ export function recordError(entry: Omit<ErrorLogEntry, 'time'>): void {
  * 记录并同时提示用户。用于「静默失败会直接丢数据」的关键路径（如项目自动保存）：
  * 以前保存失败只写 console，用户看不到，刚拍的照片只存在内存里，关闭就没了。
  */
-export function reportCriticalError(entry: Omit<ErrorLogEntry, 'time'>): void {
+export function reportCriticalError(entry: Omit<ErrorLogEntry, 'time' | 'version' | 'build'>): void {
   recordError(entry);
   notifyUi(entry.message);
 }
@@ -127,6 +150,7 @@ export function setErrorNotifier(notify: (message: string) => void): void {
 /** 诊断报告：环境 + 数据规模 + 最近错误，供导出给开发者定位。 */
 export interface DiagnosticsReport {
   app: string;
+  build: string;
   generatedAt: string;
   userAgent: string;
   platform: 'desktop' | 'web';
@@ -195,6 +219,7 @@ export async function buildDiagnosticsReport(): Promise<DiagnosticsReport> {
   const damagedProjects = await getDamagedProjectDiagnostics(repair?.damagedIds ?? []);
   return {
     app: appVersion(),
+    build: appBuild(),
     generatedAt: new Date().toISOString(),
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
     platform: desktop ? 'desktop' : 'web',

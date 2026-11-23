@@ -25,14 +25,14 @@ function describe(reason: ReminderReason): string {
 const StorageReminderBanner: React.FC<StorageReminderBannerProps> = ({ result, onArchive, onSnooze }) => {
   const urgent = result.level === 'urgent';
   return (
-    <div role={urgent ? 'alert' : 'status'} data-storage-reminder={result.level} className={`mb-4 flex flex-col gap-3 rounded-lg border p-4 text-sm shadow-2xs sm:flex-row sm:items-center ${urgent ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
+    <div role={urgent ? 'alert' : 'status'} data-storage-reminder={result.level} className={`mb-4 flex flex-col gap-3 rounded-[16px] border p-4 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:flex-row sm:items-center ${urgent ? 'border-[#f5c6ca] bg-[#fff5f5] text-[#b91c1c]' : 'border-[#f2d9a0] bg-[#fefaf0] text-[#854d0e]'}`}>
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-semibold">{urgent ? '磁盘空间严重不足' : '存储空间提醒'}</p>
         {result.reasons.map((reason) => <p key={reason.kind} className="leading-6">{describe(reason)}</p>)}
       </div>
       <div className="flex shrink-0 gap-2">
-        <button type="button" onClick={onArchive} className={`${LIST_ACTION_CLASS} text-white ${urgent ? 'border-red-600 bg-red-600 hover:bg-red-700' : 'border-blue-600 bg-blue-600 hover:bg-blue-700'}`}>去归档</button>
-        {!urgent && <button type="button" onClick={onSnooze} className={`${LIST_ACTION_CLASS} border-slate-300 bg-white text-slate-700 hover:bg-slate-100`}>稍后提醒</button>}
+        <button type="button" onClick={onArchive} className={`${LIST_ACTION_CLASS} ${urgent ? 'border-[#f3b4b8] bg-[#fdecec] font-semibold text-[#c53030] hover:bg-[#fbdada]' : 'border-[#96dcd4] bg-[#e2f5f2] font-semibold text-[#0b665f] hover:bg-[#d1efe9]'}`}>去归档</button>
+        {!urgent && <button type="button" onClick={onSnooze} className={`${LIST_ACTION_CLASS} border-[#d8dee8] bg-white text-[#3b4454] hover:bg-[#f6f8fb]`}>稍后提醒</button>}
       </div>
     </div>
   );

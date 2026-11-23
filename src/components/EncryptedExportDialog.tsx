@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_PANEL, DIALOG_TITLE, FIELD_INPUT, FIELD_LABEL } from './dialogStyles';
+import { useDialogEscape } from '../hooks/useDialogEscape';
 
 interface EncryptedExportDialogProps {
   open: boolean;
@@ -22,6 +23,8 @@ const EncryptedExportDialog: React.FC<EncryptedExportDialogProps> = ({ open, tit
       setSubmitting(false);
     }
   }, [open]);
+
+  useDialogEscape(open, onClose, submitting);
 
   if (!open) return null;
 
@@ -54,8 +57,8 @@ const EncryptedExportDialog: React.FC<EncryptedExportDialogProps> = ({ open, tit
           {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
         </div>
         <div className={DIALOG_FOOTER}>
-          <button onClick={onClose} disabled={submitting} className={BUTTON_SECONDARY}>取消</button>
-          <button onClick={() => void handleExport()} disabled={submitting} className={BUTTON_PRIMARY}>{submitting ? '正在加密...' : '导出 .evidence'}</button>
+          <button type="button" onClick={onClose} disabled={submitting} className={BUTTON_SECONDARY}>取消</button>
+          <button type="button" onClick={() => void handleExport()} disabled={submitting} className={BUTTON_PRIMARY}>{submitting ? '正在加密...' : '导出 .evidence'}</button>
         </div>
       </div>
     </div>

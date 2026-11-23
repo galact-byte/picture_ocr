@@ -22,14 +22,37 @@ function fixture(name, source) {
   put(root, 'dist/index.html', 'fresh');
   put(root, 'dist/service-worker.js');
   put(root, 'start-server.ps1', "if ((Get-Content -LiteralPath (Join-Path $PSScriptRoot 'dist/index.html')).Trim() -ne 'fresh') { exit 9 }; Add-Content -LiteralPath (Join-Path $PSScriptRoot 'server.log') -Value 'started'\n");
-  put(root, 'bin/npm.cmd', '@echo off\r\nif not "%~1"=="run" exit /b 5\r\nif not "%~2"=="build" exit /b 5\r\necho %*>>build.log\r\nif exist fail-build exit /b 7\r\nif not exist dist mkdir dist\r\necho fresh>dist\\index.html\r\necho worker>dist\\service-worker.js\r\nexit /b 0\r\n');
+  put(root, 'bin/npm.cmd', [
+    '@echo off',
+    'if "%~1"=="ci" goto install',
+    'if not "%~1"=="run" exit /b 5',
+    'if not "%~2"=="build" exit /b 5',
+    'echo %*>>build.log',
+    'if exist fail-build exit /b 7',
+    'if not exist dist mkdir dist',
+    'echo fresh>dist\\index.html',
+    'echo worker>dist\\service-worker.js',
+    'exit /b 0',
+    ':install',
+    'if not "%*"=="ci --include=dev" exit /b 5',
+    'echo %*>>install.log',
+    'if exist fail-install exit /b 8',
+    'if exist node_modules rmdir /s /q node_modules',
+    'mkdir node_modules\\.bin',
+    'if exist incomplete-install exit /b 0',
+    'echo installed>node_modules\\.bin\\tsc.cmd',
+    'echo installed>node_modules\\.bin\\vite.cmd',
+    'exit /b 0',
+    '',
+  ].join('\r\n'));
   if (source) {
     put(root, 'dist/index.html', 'stale');
     for (const file of ['src/main.tsx', 'public/icon.svg', 'presets/example.json', 'package.json', 'package-lock.json', 'index.html', 'tsconfig.json', 'vite.config.ts', 'tailwind.config.js', 'postcss.config.js', 'scripts/generate-pwa-icons.mjs', 'scripts/generate-service-worker.mjs', 'node_modules/.bin/tsc.cmd', 'node_modules/.bin/vite.cmd']) put(root, file);
   }
   return root;
 }
-function launch(root, { builds = 0, status = 0, starts = 1, npmAvailable = true } = {}) {
+function launch(root, { builds = 0, installs = 0, status = 0, starts = 1, npmAvailable = true } = {}) {
+  const beforeInstalls = lines(root, 'install.log');
   const beforeBuilds = lines(root, 'build.log');
   const beforeStarts = lines(root, 'server.log');
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== 'path'));
@@ -40,6 +63,7 @@ function launch(root, { builds = 0, status = 0, starts = 1, npmAvailable = true 
   assert.ifError(result.error);
   const output = `${result.stdout}\n${result.stderr}`;
   assert.equal(result.status, status, output);
+  assert.equal(lines(root, 'install.log') - beforeInstalls, installs, `安装次数不符：${output}`);
   assert.equal(lines(root, 'build.log') - beforeBuilds, builds, `构建次数不符：${output}`);
   assert.equal(lines(root, 'server.log') - beforeStarts, starts, `服务启动次数不符：${output}`);
   checks++;
@@ -83,8 +107,30 @@ try {
   launch(root, { status: 1, starts: 0, npmAvailable: false });
   rmSync(join(root, 'node_modules/.bin/tsc.cmd'));
   put(root, 'src/main.tsx', 'dependency unavailable');
-  launch(root, { status: 1, starts: 0 });
-  console.log(`Web 启动器 ${checks} 个用例通过：内容更新、新增/删除、无变化、构建失败与重试、依赖缺失、空格及特殊字符路径、发布包兼容。`);
+  launch(root, { installs: 1, builds: 1 });
+  launch(root);
+  rmSync(join(root, 'node_modules/.bin/vite.cmd'));
+  put(root, 'src/main.tsx', 'vite unavailable');
+  launch(root, { installs: 1, builds: 1 });
+  launch(root);
+  const clean = fixture('首次启动 缺少依赖和产物', true);
+  rmSync(join(clean, 'node_modules'), { recursive: true });
+  rmSync(join(clean, 'dist'), { recursive: true });
+  launch(clean, { installs: 1, builds: 1 });
+  launch(clean);
+  const failed = fixture('依赖安装失败 重试', true);
+  rmSync(join(failed, 'node_modules'), { recursive: true });
+  put(failed, 'fail-install');
+  launch(failed, { installs: 1, status: 8, starts: 0 });
+  assert.equal(existsSync(join(failed, 'node_modules/.cache/picture-ocr-web-build.sha256')), false);
+  rmSync(join(failed, 'fail-install'));
+  launch(failed, { installs: 1, builds: 1 });
+  launch(failed);
+  const incomplete = fixture('安装成功但依赖不完整', true);
+  rmSync(join(incomplete, 'node_modules'), { recursive: true });
+  put(incomplete, 'incomplete-install');
+  launch(incomplete, { installs: 1, status: 1, starts: 0 });
+  console.log(`Web 启动器 ${checks} 个用例通过：内容更新、新增/删除、无变化、构建失败与重试、依赖自动安装及失败重试、空格及特殊字符路径、发布包兼容。`);
 } finally {
   rmSync(temp, { recursive: true, force: true });
 }

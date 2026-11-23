@@ -121,10 +121,10 @@ const AppContent: React.FC<AppContentProps> = ({
 
   if (!loaded) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+      <div className="craft-canvas h-screen w-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-gray-500">正在加载数据...</p>
+          <div className="w-8 h-8 border-2 border-[#0d9488] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-[#647084]">正在加载数据...</p>
         </div>
       </div>
     );

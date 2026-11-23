@@ -4,6 +4,7 @@ import { useAppContext, useAppState } from '../context/AppContext';
 import { parseProfile } from '../utils/preset';
 import { useToast } from './Toast';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE, FIELD_ERROR, FIELD_INPUT, FIELD_INPUT_ERROR, FIELD_LABEL } from './dialogStyles';
+import { useDialogEscape } from '../hooks/useDialogEscape';
 
 interface ProjectInfoDialogProps {
   open: boolean;
@@ -26,6 +27,8 @@ const ProjectInfoDialog: React.FC<ProjectInfoDialogProps> = ({ open, onClose }) 
       setErrors({});
     }
   }, [open, meta, profile]);
+
+  useDialogEscape(open, onClose, saving);
 
   if (!open) return null;
 

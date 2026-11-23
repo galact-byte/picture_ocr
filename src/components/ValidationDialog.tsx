@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ValidationMissing } from '../utils/wordExport';
 import { BUTTON_SECONDARY, BUTTON_WARNING, DIALOG_BODY, DIALOG_DESCRIPTION, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE } from './dialogStyles';
+import { useDialogEscape } from '../hooks/useDialogEscape';
 
 interface ValidationDialogProps {
   isOpen: boolean;
@@ -15,10 +16,12 @@ const ValidationDialog: React.FC<ValidationDialogProps> = ({
   onContinue,
   onCancel,
 }) => {
+  useDialogEscape(isOpen, onCancel);
+
   if (!isOpen) return null;
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="validation-dialog-title" className={DIALOG_OVERLAY}>
+    <div role="dialog" aria-modal="true" aria-labelledby="validation-dialog-title" className={DIALOG_OVERLAY} onClick={onCancel}>
       <div className={`${DIALOG_PANEL} max-w-lg`} onClick={(e) => e.stopPropagation()}>
         <div className={DIALOG_HEADER}>
           <div className="flex items-start gap-3">

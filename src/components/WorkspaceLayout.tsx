@@ -68,9 +68,9 @@ const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ toolbar, children }) 
   }, [modalOpen]);
 
   return (
-    <div data-workspace className="flex h-dvh min-w-0 bg-slate-100">
-      <div className={desktop ? 'relative block shrink-0' : modalOpen ? 'fixed inset-0 z-40' : 'hidden'}>
-        {modalOpen && <button type="button" tabIndex={-1} aria-label="关闭分类导航遮罩" className="absolute inset-0 bg-slate-950/55" onClick={() => setNavigationOpen(false)} />}
+    <div data-workspace className="craft-canvas flex h-dvh min-w-0">
+      <div className={desktop ? 'relative block shrink-0 py-3 pl-3' : modalOpen ? 'fixed inset-0 z-40' : 'hidden'}>
+        {modalOpen && <button type="button" tabIndex={-1} aria-label="关闭分类导航遮罩" className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px]" onClick={() => setNavigationOpen(false)} />}
         <div ref={panelRef} id="workspace-navigation" data-workspace-navigation role={modalOpen ? 'dialog' : undefined} aria-modal={modalOpen ? true : undefined} aria-label={modalOpen ? '分类导航' : undefined} className="relative h-full w-80 max-w-[calc(100vw-2rem)] lg:w-auto lg:max-w-none">
           <Sidebar compact={!desktop} onClose={() => setNavigationOpen(false)} onSelectAsset={() => {
             if (!desktop) { focusContentRef.current = true; setNavigationOpen(false); }

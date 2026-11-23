@@ -31,24 +31,24 @@ const ItemCommandPanel: React.FC<ItemCommandPanelProps> = ({ profiles, ids, erro
     setCopying(false); setStatus(success ? `已复制：${title}` : '自动复制失败，请按 Ctrl+C（Mac 使用 ⌘C）手动复制下方已选文本。');
     if (!success) setManualText(command);
   }
-  return <section data-item-commands aria-label="检查项关联命令" className="min-w-0 border-b border-slate-200 bg-slate-50 px-4 py-2 sm:px-8" onClick={e => e.stopPropagation()}>
+  return <section data-item-commands aria-label="检查项关联命令" className="min-w-0 border-b border-[#edf0f5] bg-[#f8fafc] px-4 py-3 sm:px-5" onClick={e => e.stopPropagation()}>
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <button type="button" onClick={event => { event.currentTarget.focus(); onManage(); }} className="min-h-11 border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">管理关联</button>
+      <button type="button" onClick={event => { event.currentTarget.focus(); onManage(); }} className="min-h-11 rounded-[9px] border border-[#d8dee8] bg-white px-3 text-sm font-medium text-[#475266] transition-colors hover:bg-[#f4f6fa] hover:text-[#1c2230] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">管理关联</button>
     </div>
-    {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : <>
-      {!!missing && <p role="status" className="mt-3 text-sm text-amber-800">{missing} 段关联命令已从命令库删除，可在“管理关联”中取消失效关联。</p>}
+    {error ? <p role="alert" className="mt-3 text-sm text-[#c53030]">{error}</p> : <>
+      {!!missing && <p role="status" className="mt-3 text-sm text-[#9a5b08]">{missing} 段关联命令已从命令库删除，可在“管理关联”中取消失效关联。</p>}
       {commands.map(({ profile, group, snippet }, index) => <article key={snippet.id} data-linked-command-id={snippet.id} className="mt-2 min-w-0">
-        {(index === 0 || commands[index - 1].group.id !== group.id) && <div className="break-words border-t border-slate-200 pt-2 text-xs leading-5 text-slate-600"><p>{profile.label} · {group.title} · {group.environment}</p>{group.note && <p>{group.note}</p>}</div>}
+        {(index === 0 || commands[index - 1].group.id !== group.id) && <div className="break-words border-t border-[#edf0f5] pt-2 text-xs leading-5 text-[#8a94a6]"><p>{profile.label} · {group.title} · {group.environment}</p>{group.note && <p>{group.note}</p>}</div>}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="min-w-0 break-words text-sm font-semibold text-slate-950">{snippet.title}</h4>
-          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2"><span role="status" aria-live="polite" className="min-w-0 break-words text-sm text-blue-700">{copyId === snippet.id ? status : ''}</span>
-          <button type="button" aria-label={`复制关联命令：${snippet.title}`} disabled={copying} onClick={() => void copy(snippet.command, snippet.title, snippet.id)} className="min-h-11 shrink-0 px-3 text-sm text-blue-700 hover:border-blue-400 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">复制</button></div>
+          <h4 className="min-w-0 break-words text-sm font-semibold text-[#1c2230]">{snippet.title}</h4>
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2"><span role="status" aria-live="polite" className="min-w-0 break-words text-sm text-[#0d7c73]">{copyId === snippet.id ? status : ''}</span>
+          <button type="button" aria-label={`复制关联命令：${snippet.title}`} disabled={copying} onClick={() => void copy(snippet.command, snippet.title, snippet.id)} className="min-h-11 shrink-0 rounded-[8px] px-3 text-sm font-medium text-[#0d7c73] transition-colors hover:bg-[#e6f6f4] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">复制</button></div>
         </div>
-        <pre tabIndex={0} aria-label={`${snippet.title}关联命令`} className="max-w-full overflow-x-auto border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-900"><code>{snippet.command}</code></pre>
-        {snippet.note && <p className="mt-2 break-words text-sm leading-6 text-slate-600">{snippet.note}</p>}
+        <pre tabIndex={0} aria-label={`${snippet.title}关联命令`} className="max-w-full overflow-x-auto rounded-[10px] border border-[#e3e7ef] bg-white p-3 text-sm leading-6 text-[#1c2230]"><code>{snippet.command}</code></pre>
+        {snippet.note && <p className="mt-2 break-words text-sm leading-6 text-[#647084]">{snippet.note}</p>}
       </article>)}
     </>}
-    {manualText && <textarea ref={manualRef} readOnly value={manualText} aria-label="关联命令手动复制文本" rows={4} className="mt-2 w-full min-w-0 border border-slate-300 bg-white p-3 font-mono text-sm" />}
+    {manualText && <textarea ref={manualRef} readOnly value={manualText} aria-label="关联命令手动复制文本" rows={4} className="mt-2 w-full min-w-0 rounded-[10px] border border-[#d8dee8] bg-white p-3 font-mono text-sm" />}
   </section>;
 };
 export default ItemCommandPanel;

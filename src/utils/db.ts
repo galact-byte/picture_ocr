@@ -375,7 +375,7 @@ export async function ensureSummariesSynced(force = false): Promise<SummaryRepai
 
   summariesSyncDone = true;
   lastRepairReport = report;
-  if (report.missing > 0 || report.removedOrphans > 0 || report.damagedIds.length > 0) {
+  if (report.damagedIds.length > 0) {
     recordError({
       type: 'manual',
       message: `存储自检：项目 ${report.projectCount} 条 / 摘要 ${report.summaryCount} 条，补建 ${report.repaired} 条，`

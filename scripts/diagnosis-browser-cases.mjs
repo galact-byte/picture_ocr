@@ -1,5 +1,5 @@
 import * as db from '../src/utils/db';
-import { buildDiagnosticsReport } from '../src/utils/errorLog';
+import { buildDiagnosticsReport, clearErrorLog, getErrorLog } from '../src/utils/errorLog';
 
 export async function run() {
   const results = [];
@@ -124,6 +124,7 @@ export async function run() {
   await test('null 与历史完成重检', async () => {
     localStorage.setItem(stateKey, JSON.stringify({ completedIds: ['bad'], damagedIds: [] }));
     await db.ensureSummariesSynced(true);
+    check('不可读记录的自检仍计入真实错误', getErrorLog().some(e => e.type === 'manual' && e.message.includes('无法读取')));
     const progress = await db.getImageMigrationProgress();
     check('已知异常不计入完成且可从界面重新处理', progress.completed === 0 && progress.pending === 2);
     const report = await db.migrateInlineImages();
@@ -193,6 +194,24 @@ export async function run() {
     check('无数据库明确 missing/null', row.images.status === 'missing' && row.images.count === null);
     await buildDiagnosticsReport();
     check('完整诊断未创建数据库', !(await indexedDB.databases()).some(d => d.name === name));
+  });
+  await test('成功存储自检不污染反馈日志', async () => {
+    await reset();
+    await seed();
+    clearErrorLog();
+    const repair = await db.ensureSummariesSynced(true);
+    check('确实成功补建摘要', repair.repaired === 2 && repair.damagedIds.length === 0);
+    check('成功补建摘要不计入错误', getErrorLog().length === 0);
+    const report = await buildDiagnosticsReport();
+    check('诊断导出不把成功自检当作异常', report.errors.length === 0);
+    check('成功自检详情仍保留在诊断中', report.repair?.repaired === 2);
+    const conn = await request(indexedDB.open(name));
+    const tx = conn.transaction('projectSummaries', 'readwrite');
+    tx.objectStore('projectSummaries').put({ id: 'orphan' });
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onabort = () => reject(tx.error); });
+    conn.close();
+    const cleaned = await db.ensureSummariesSynced(true);
+    check('成功清理孤立摘要不计入错误', cleaned.removedOrphans === 1 && getErrorLog().length === 0);
   });
   return { platform: window.evidenceData ? 'desktop' : 'web', results };
 }

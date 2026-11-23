@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { isEvidencePackageFile } from '../utils/evidencePackage';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_DESCRIPTION, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE, FIELD_INPUT, FIELD_LABEL } from './dialogStyles';
+import { useDialogEscape } from '../hooks/useDialogEscape';
 
 interface ImportResultInfo {
   success: boolean;
@@ -36,6 +37,8 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
       setResult(null);
     }
   }, [isOpen]);
+
+  useDialogEscape(isOpen, onClose, importing);
 
   if (!isOpen) return null;
 
@@ -81,7 +84,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
         {showSuccess ? (
           <>
             <div className={DIALOG_BODY}>
-              <div role="status" className="flex items-start gap-3 border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              <div role="status" className="flex items-start gap-3 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-4 py-3 text-sm text-[#166534]">
                 <span aria-hidden className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500 text-xs text-white">✓</span>
                 <div>
                   <div className="font-semibold">导入完成</div>
@@ -109,7 +112,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
               </label>
 
               {selectedFile && (
-                <div className="truncate border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                <div className="truncate rounded-lg border border-[#e6e2da] bg-[#faf9f5] px-3 py-2 text-sm text-[#5c5850]">
                   已选择：{selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
                 </div>
               )}
@@ -121,7 +124,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
               )}
 
               {result && !result.success && (
-                <div role="alert" className="border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+                <div role="alert" className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm leading-6 text-[#991b1b]">
                   {result.message}
                 </div>
               )}
@@ -140,7 +143,7 @@ const ImportDialog: React.FC<ImportDialogProps> = ({
               {importing && (
                 <div role="status" aria-live="polite">
                   <div className="mb-2 text-sm text-slate-600">正在导入数据，请稍候...</div>
-                  <div className="relative h-1.5 w-full overflow-hidden bg-blue-100 text-blue-500 progress-indeterminate" />
+                  <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[#efece6] text-[#0f766e] progress-indeterminate" />
                 </div>
               )}
             </div>

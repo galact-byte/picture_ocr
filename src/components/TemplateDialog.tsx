@@ -3,6 +3,7 @@ import type { Category, CheckItemTemplate } from '../types';
 import { genId } from '../context/appReducer';
 import { useConfirmDialog } from './ConfirmDialog';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_DESCRIPTION, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE, FIELD_CONTROL } from './dialogStyles';
+import { useDialogEscape } from '../hooks/useDialogEscape';
 
 interface TemplateDialogProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
       setItems(cat.defaultItems.map((item) => ({ ...item })));
     }
   }, [selectedCatId, categories]);
+
+  useDialogEscape(isOpen, onClose, Boolean(dialog));
 
   if (!isOpen) return null;
 
@@ -103,10 +106,10 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
                   type="button"
                   onClick={() => setSelectedCatId(cat.id)}
                   aria-pressed={selectedCatId === cat.id}
-                  className={`min-h-9 rounded-md border px-3 text-sm font-medium transition-colors ${
+                  className={`min-h-9 rounded-[9px] border px-3 text-sm font-medium transition-colors ${
                     selectedCatId === cat.id
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      ? 'border-[#96dcd4] bg-[#e2f5f2] font-semibold text-[#0b665f]'
+                      : 'border-[#d8dee8] bg-white text-[#475266] hover:bg-[#f6f8fb]'
                   }`}
                 >
                   {cat.name}
@@ -121,7 +124,7 @@ const TemplateDialog: React.FC<TemplateDialogProps> = ({
           </p>
 
           {items.length === 0 ? (
-            <div className="border border-dashed border-slate-300 py-8 text-center text-sm text-slate-500">
+            <div className="rounded-lg border border-dashed border-[#d6d1c7] py-8 text-center text-sm text-[#8c867b]">
               暂无默认检查项，请在下方添加
             </div>
           ) : (
@@ -204,7 +207,11 @@ const TemplateItemRow: React.FC<TemplateItemRowProps> = ({
           onBlur={handleFinishEdit}
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleFinishEdit();
-            if (e.key === 'Escape') setEditing(false);
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              e.stopPropagation();
+              setEditing(false);
+            }
           }}
           aria-label="检查项名称"
           className="min-h-8 flex-1 rounded-md border border-blue-500 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"

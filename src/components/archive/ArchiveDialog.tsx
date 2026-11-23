@@ -6,7 +6,8 @@ import { computeStorageStats, type SystemStorageStat } from '../../utils/storage
 import { formatBytes } from '../../utils/storageEstimate';
 import { formatTime, getGroupDisplayName, getSystemDisplayName } from '../project-list/projectListViews';
 import { useConfirmDialog } from '../ConfirmDialog';
-import { DIALOG_CLOSE } from '../dialogStyles';
+import { BUTTON_PRIMARY, BUTTON_SECONDARY, DIALOG_BODY, DIALOG_CLOSE, DIALOG_FOOTER, DIALOG_HEADER, DIALOG_OVERLAY, DIALOG_PANEL, DIALOG_TITLE } from '../dialogStyles';
+import { useDialogEscape } from '../../hooks/useDialogEscape';
 
 interface ArchiveDialogProps {
   groups: ProjectGroupSummary[];
@@ -32,9 +33,6 @@ interface Section {
   rows: Row[];
   bytes: number;
 }
-
-const primaryButton = 'rounded-md border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50';
-const secondaryButton = 'rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
 
 function blockedReason(stat: SystemStorageStat | null): string | null {
   if (!stat) return '读取失败';
@@ -93,6 +91,7 @@ const ArchiveDialog: React.FC<ArchiveDialogProps> = ({ groups, initialSelectedId
   const totalBytes = sections.reduce((sum, section) => sum + section.bytes, 0);
   const selectedBytes = [...selected].reduce((sum, id) => sum + (stats.get(id)?.imageBytes ?? 0), 0);
   const running = phase === 'running';
+  useDialogEscape(true, onClose, running || Boolean(dialog));
 
   const toggle = (id: string) => setSelected((current) => {
     const next = new Set(current);
@@ -147,67 +146,67 @@ const ArchiveDialog: React.FC<ArchiveDialogProps> = ({ groups, initialSelectedId
   const freed = archived.reduce((sum, outcome) => sum + (outcome.freedBytes ?? 0), 0);
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="archive-dialog-title" className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-950/55 px-4" onClick={() => { if (!running) onClose(); }}>
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-6 py-4">
-          <h2 id="archive-dialog-title" className="text-base font-semibold text-slate-950">占用明细与归档</h2>
+    <div role="dialog" aria-modal="true" aria-labelledby="archive-dialog-title" className={`${DIALOG_OVERLAY} !z-[75]`} onClick={() => { if (!running) onClose(); }}>
+      <div className={`${DIALOG_PANEL} max-w-3xl`} onClick={(event) => event.stopPropagation()}>
+        <div className={`${DIALOG_HEADER} items-center`}>
+          <h2 id="archive-dialog-title" className={DIALOG_TITLE}>占用明细与归档</h2>
           <button type="button" onClick={onClose} disabled={running} className={DIALOG_CLOSE} aria-label="关闭">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          {phase === 'loading' && <p className="py-10 text-center text-sm text-slate-600">正在统计各系统的图片占用（{statsDone} / {systems.length}）…</p>}
+        <div className={DIALOG_BODY}>
+          {phase === 'loading' && <p className="py-10 text-center text-sm text-[#6e6a61]">正在统计各系统的图片占用（{statsDone} / {systems.length}）…</p>}
 
           {phase === 'select' && <>
-            <p className="text-xs leading-5 text-slate-600">
+            <p className="text-xs leading-5 text-[#6e6a61]">
               归档会把所选系统的图片打包保存到你选择的目录（建议选 C 盘以外的盘或移动硬盘），校验文件完整后才删除本地图片；项目、资产和检查项都保留在列表里，需要时用归档文件恢复。每个系统生成一个文件，也可以用「导入数据包」打开。
             </p>
-            {!supported && <p role="alert" className="mt-3 border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">当前浏览器不支持选择保存目录，无法归档。请用 Chrome 或 Edge 打开本工具；为避免把归档存进 C 盘「下载」目录，这里不提供下载方式。</p>}
-            <p className="mt-3 text-xs text-slate-500">本地图片共 {formatBytes(totalBytes)}，按占用从大到小排列。</p>
-            <div className="mt-2 border border-slate-200">
+            {!supported && <p role="alert" className="mt-3 rounded-lg border border-[#f3d9a4] bg-[#fef9ee] px-3 py-2 text-xs leading-5 text-[#78350f]">当前浏览器不支持选择保存目录，无法归档。请用 Chrome 或 Edge 打开本工具；为避免把归档存进 C 盘「下载」目录，这里不提供下载方式。</p>}
+            <p className="mt-3 text-xs text-[#8c867b] tabular-nums">本地图片共 {formatBytes(totalBytes)}，按占用从大到小排列。</p>
+            <div className="mt-2 overflow-hidden rounded-lg border border-[#e6e2da]">
               {sections.map((section) => {
                 const selectable = section.rows.filter((row) => !row.blocked);
                 const allChecked = selectable.length > 0 && selectable.every((row) => selected.has(row.system.id));
-                return <div key={section.id} data-archive-section={section.id} className="border-b border-slate-200 last:border-b-0">
-                  <label className="flex items-center gap-3 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
-                    <input type="checkbox" className="h-4 w-4" checked={allChecked} disabled={selectable.length === 0} onChange={() => toggleSection(section)} aria-label={`全选${section.title}`} />
+                return <div key={section.id} data-archive-section={section.id} className="border-b border-[#e6e2da] last:border-b-0">
+                  <label className="flex items-center gap-3 bg-[#faf9f5] px-3 py-2 text-sm font-semibold text-[#1f1d1a]">
+                    <input type="checkbox" className="h-4 w-4 rounded border-[#cfc9be] accent-[#0f766e]" checked={allChecked} disabled={selectable.length === 0} onChange={() => toggleSection(section)} aria-label={`全选${section.title}`} />
                     <span className="min-w-0 flex-1 break-words">{section.title}</span>
-                    <span className="whitespace-nowrap text-xs font-normal tabular-nums text-slate-600">{formatBytes(section.bytes)}</span>
+                    <span className="whitespace-nowrap text-xs font-normal tabular-nums text-[#6e6a61]">{formatBytes(section.bytes)}</span>
                   </label>
                   {section.rows.map((row) => (
-                    <label key={row.system.id} data-archive-system={row.system.id} className={`flex items-center gap-3 border-t border-slate-100 px-3 py-2 text-sm ${row.blocked ? 'text-slate-400' : 'text-slate-700 hover:bg-slate-50'}`}>
-                      <input type="checkbox" className="h-4 w-4" checked={selected.has(row.system.id)} disabled={!!row.blocked} onChange={() => toggle(row.system.id)} aria-label={`选择${getSystemDisplayName(row.system)}`} />
+                    <label key={row.system.id} data-archive-system={row.system.id} className={`flex items-center gap-3 border-t border-[#f0ede6] px-3 py-2 text-sm ${row.blocked ? 'text-[#a19b90]' : 'text-[#4a463f] hover:bg-[#faf9f5]'}`}>
+                      <input type="checkbox" className="h-4 w-4 rounded border-[#cfc9be] accent-[#0f766e]" checked={selected.has(row.system.id)} disabled={!!row.blocked} onChange={() => toggle(row.system.id)} aria-label={`选择${getSystemDisplayName(row.system)}`} />
                       <span className="min-w-0 flex-1">
                         <span className="block break-words">{getSystemDisplayName(row.system)}</span>
-                        <span className="block text-xs text-slate-500">最后修改 {formatTime(row.system.updatedAt)} · {row.stat?.imageCount ?? '-'} 张</span>
+                        <span className="block text-xs text-[#8c867b]">最后修改 {formatTime(row.system.updatedAt)} · {row.stat?.imageCount ?? '-'} 张</span>
                       </span>
-                      {row.blocked && <span className="whitespace-nowrap border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{row.blocked}</span>}
+                      {row.blocked && <span className="whitespace-nowrap rounded border border-[#e6e2da] bg-[#f5f3ee] px-2 py-0.5 text-xs text-[#8c867b]">{row.blocked}</span>}
                       <span className="w-20 whitespace-nowrap text-right text-xs tabular-nums">{row.stat?.archived ? '-' : formatBytes(row.stat?.imageBytes ?? null)}</span>
                     </label>
                   ))}
                 </div>;
               })}
             </div>
-            {sections.some((section) => section.rows.some((row) => row.blocked === '待整理')) && <p className="mt-2 text-xs text-slate-500">「待整理」的系统图片还存放在旧格式里，先在存储设置里完成「图片存储优化」后才能归档。</p>}
-            {error && <p role="alert" className="mt-3 border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
+            {sections.some((section) => section.rows.some((row) => row.blocked === '待整理')) && <p className="mt-2 text-xs text-[#8c867b]">「待整理」的系统图片还存放在旧格式里，先在存储设置里完成「图片存储优化」后才能归档。</p>}
+            {error && <p role="alert" className="mt-3 rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-xs text-[#991b1b]">{error}</p>}
           </>}
 
           {phase === 'running' && progress && <div className="py-8 text-center">
-            <p className="text-sm text-slate-800">正在归档第 {progress.index} / {progress.total} 个系统：{progress.name}</p>
-            <div className="mx-auto mt-3 h-2 w-full max-w-md overflow-hidden bg-slate-100"><div className="h-full bg-blue-500" style={{ width: `${Math.round(((progress.index - 1) / progress.total) * 100)}%` }} /></div>
-            <p className="mt-3 text-xs text-slate-500">保存到：{targetLabel}。请勿关闭窗口。</p>
+            <p className="text-sm text-[#1f1d1a]">正在归档第 {progress.index} / {progress.total} 个系统：{progress.name}</p>
+            <div className="mx-auto mt-3 h-2 w-full max-w-md overflow-hidden rounded-full bg-[#efece6]"><div className="h-full rounded-full bg-[#0f766e]" style={{ width: `${Math.round(((progress.index - 1) / progress.total) * 100)}%` }} /></div>
+            <p className="mt-3 text-xs text-[#8c867b]">保存到：{targetLabel}。请勿关闭窗口。</p>
           </div>}
 
           {phase === 'done' && <div className="space-y-3 text-sm">
-            <p className="text-slate-800">
+            <p className="text-[#1f1d1a]">
               {archived.length > 0 ? `已归档 ${archived.length} 个系统，释放约 ${formatBytes(freed)}。` : '没有系统完成归档。'}
-              {failed.length > 0 && <span className="text-red-700"> {failed.length} 个失败。</span>}
-              {skipped.length > 0 && <span className="text-slate-600"> {skipped.length} 个已是归档状态，已跳过。</span>}
+              {failed.length > 0 && <span className="text-[#b91c1c]"> {failed.length} 个失败。</span>}
+              {skipped.length > 0 && <span className="text-[#6e6a61]"> {skipped.length} 个已是归档状态，已跳过。</span>}
             </p>
-            {archived.length > 0 && <p className="text-xs leading-5 text-slate-500">归档文件保存在：{targetLabel}。请妥善保管，恢复时需要用到。浏览器回收磁盘空间可能有延迟，存储设置里的「已用」不一定立即下降。</p>}
+            {archived.length > 0 && <p className="text-xs leading-5 text-[#6e6a61]">归档文件保存在：{targetLabel}。请妥善保管，恢复时需要用到。浏览器回收磁盘空间可能有延迟，存储设置里的「已用」不一定立即下降。</p>}
             {failed.length > 0 && <ul className="space-y-2">
-              {failed.map((outcome) => <li key={outcome.projectId} className="border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
+              {failed.map((outcome) => <li key={outcome.projectId} className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-xs leading-5 text-[#991b1b]">
                 <span className="font-semibold">{outcome.systemName || '未命名系统'}</span>：{outcome.message}
                 {outcome.fileName && <span className="block">{outcome.invalidFileLeft ? `目录里的「${outcome.fileName}」无效，可以删除。` : `目录里的「${outcome.fileName}」是完整的，但本地数据未清理。`}</span>}
               </li>)}
@@ -215,14 +214,14 @@ const ArchiveDialog: React.FC<ArchiveDialogProps> = ({ groups, initialSelectedId
           </div>}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50/50 px-6 py-4">
+        <div className={DIALOG_FOOTER}>
           {phase === 'select' && <>
-            <span className="mr-auto text-xs text-slate-600">已选 {selected.size} 个系统，约 {formatBytes(selectedBytes)}</span>
-            <button onClick={onClose} className={secondaryButton}>取消</button>
-            <button onClick={() => void handleStart()} disabled={!supported || selected.size === 0} className={primaryButton}>选择保存位置并归档…</button>
+            <span className="mr-auto text-xs text-[#6e6a61] tabular-nums">已选 {selected.size} 个系统，约 {formatBytes(selectedBytes)}</span>
+            <button type="button" onClick={onClose} className={BUTTON_SECONDARY}>取消</button>
+            <button type="button" onClick={() => void handleStart()} disabled={!supported || selected.size === 0} className={BUTTON_PRIMARY}>选择保存位置并归档…</button>
           </>}
-          {phase === 'loading' && <button onClick={onClose} className={secondaryButton}>取消</button>}
-          {phase === 'done' && <button onClick={onClose} className={primaryButton}>完成</button>}
+          {phase === 'loading' && <button type="button" onClick={onClose} className={BUTTON_SECONDARY}>取消</button>}
+          {phase === 'done' && <button type="button" onClick={onClose} className={BUTTON_PRIMARY}>完成</button>}
         </div>
       </div>
       {dialog}

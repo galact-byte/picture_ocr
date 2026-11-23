@@ -451,29 +451,28 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
 
   return (
     <aside
-      className={`relative shrink-0 border-r border-slate-300/80 bg-[#eaeff5] flex h-full text-slate-700 shadow-[inset_-1px_0_0_rgba(15,23,42,0.03)] ${isResizing ? 'select-none' : ''}`}
+      className={`relative shrink-0 bg-white/95 backdrop-blur-md flex h-full text-[#475266] ${compact ? 'border-r border-[#e3e7ef]' : 'rounded-[18px] border border-[#e3e7ef] shadow-[0_1px_2px_rgba(15,23,42,0.04),0_6px_20px_rgba(15,23,42,0.04)]'} ${isResizing ? 'select-none' : ''}`}
       style={{ width: compact ? '100%' : sidebarWidth }}
     >
       <div ref={assetListRef} className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto ${draggingAsset ? 'scroll-auto select-none' : 'scroll-smooth'}`}>
-        <div className="flex items-center gap-2.5 border-b border-slate-300/70 bg-[#e2e8f0]/60 px-5 py-4">
-        <svg className="h-5 w-5 shrink-0 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-        <div>
-          <p className="text-sm font-bold text-slate-900">证据采集平台</p>
-          <p className="text-xs text-slate-500">证据分类导航</p>
-        </div>
-        {compact && <button type="button" onClick={onClose} aria-label="关闭分类导航" className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center text-slate-500 hover:text-slate-900">
+        <div className="flex items-center gap-2.5 border-b border-[#edf0f5] px-4 py-3.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border border-[#bde6e0] bg-[#e6f6f4] text-[#0d7c73] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]" aria-hidden="true">
+          <svg className="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.1} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </span>
+        <p className="text-sm font-bold tracking-[-0.01em] text-[#1c2230]">证据采集平台</p>
+        {compact && <button type="button" onClick={onClose} aria-label="关闭分类导航" className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] text-[#647084] hover:bg-[#edf1f6] hover:text-[#1c2230]">
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
         </button>}
       </div>
-      <div className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-slate-500">
+      <div className="flex items-center justify-between px-4 py-1.5 text-xs font-medium text-[#8a94a6]">
         <span>分类导航</span>
-        <button type="button" aria-label="新增分类" onClick={() => { setAddingCategory(true); setRenamingCategoryId(null); setCategoryName(''); }} className="min-h-11 min-w-11 text-lg text-slate-500 transition-colors hover:text-blue-600">+</button>
+        <button type="button" aria-label="新增分类" onClick={() => { setAddingCategory(true); setRenamingCategoryId(null); setCategoryName(''); }} className="min-h-11 min-w-11 rounded-[10px] text-lg text-[#7b8496] transition-colors hover:bg-[#edf1f6] hover:text-[#0d7c73]">+</button>
       </div>
-      {addingCategory && <div className="mx-4 mb-3 space-y-2">
-        <label className="block text-sm text-slate-700">分类名称<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') setAddingCategory(false); }} className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-2 text-slate-900 focus:border-blue-500 focus:outline-none" /></label>
-        <div className="flex justify-end gap-2"><button type="button" onClick={() => setAddingCategory(false)} className="min-h-11 px-3 text-sm text-slate-600">取消</button><button type="button" disabled={!categoryName.trim()} onClick={handleAddCategory} className="min-h-11 px-3 text-sm font-medium text-blue-600 disabled:opacity-50">确定</button></div>
+      {addingCategory && <div className="mx-3 mb-3 space-y-2 rounded-[12px] border border-[#e3e7ef] bg-[#f8fafc] p-3">
+        <label className="block text-sm text-[#3b4454]">分类名称<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') setAddingCategory(false); }} className="mt-1 min-h-11 w-full rounded-[9px] border border-[#d8dee8] bg-white px-2.5 text-[#1c2230] focus:border-[#0d9488] focus:outline-none focus:ring-2 focus:ring-[#0d9488]/15" /></label>
+        <div className="flex justify-end gap-2"><button type="button" onClick={() => setAddingCategory(false)} className="min-h-11 rounded-[8px] px-3 text-sm text-[#647084] hover:bg-[#edf1f6]">取消</button><button type="button" disabled={!categoryName.trim()} onClick={handleAddCategory} className="min-h-11 rounded-[8px] px-3 text-sm font-semibold text-[#0b665f] hover:bg-[#e6f6f4] disabled:opacity-45">确定</button></div>
       </div>}
       {categories.map((cat) => {
         const isActive = cat.id === activeCategoryId;
@@ -483,19 +482,19 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
         const isAdding = addingToCategoryId === cat.id;
 
         return (
-          <div key={cat.id} className="border-b border-slate-300/60">
+          <div key={cat.id} className="border-b border-[#f0f3f8] last:border-b-0">
             {/* Category header */}
             <div
-              className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors select-none
+              className={`mx-2 my-1 flex items-center justify-between rounded-[10px] px-2.5 py-2 cursor-pointer transition-colors select-none
                 ${isActive
-                  ? 'bg-[#dce4ef] text-slate-950 font-semibold'
-                  : 'text-slate-700 hover:bg-[#e2e8f0]/70 hover:text-slate-950'
+                  ? 'bg-[#f1f5f9] text-[#1c2230] font-semibold'
+                  : 'text-[#475266] hover:bg-[#f6f8fb] hover:text-[#1c2230]'
                 }`}
               onClick={() => toggleCategory(cat.id)}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <svg
-                  className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive || isExpanded ? 'text-blue-600' : 'text-slate-500'}`}
+                  className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive || isExpanded ? 'text-[#0d7c73]' : 'text-[#8a94a6]'}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -504,14 +503,14 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                 </svg>
                 <button type="button" onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }} className="min-h-11 min-w-11 truncate text-left font-medium" title={cat.name}>{cat.name}</button>
                 {catAssets.length > 0 && (
-                  <span className="text-xs text-slate-500 px-1 tabular-nums">
+                  <span className="rounded-md bg-[#eef1f6] px-1.5 py-0.5 text-xs text-[#647084] tabular-nums">
                     {catAssets.length}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-1">
-                <button type="button" aria-label={`重命名分类 ${cat.name}`} onClick={(e) => { e.stopPropagation(); setAddingCategory(false); setRenamingCategoryId(cat.id); setCategoryName(cat.name); }} className="flex min-h-11 min-w-11 items-center justify-center text-slate-500 transition-colors hover:text-blue-600" title="重命名分类"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5" /></svg></button>
+              <div className="flex items-center gap-0.5">
+                <button type="button" aria-label={`重命名分类 ${cat.name}`} onClick={(e) => { e.stopPropagation(); setAddingCategory(false); setRenamingCategoryId(cat.id); setCategoryName(cat.name); }} className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-[#8a94a6] transition-colors hover:text-[#1c2230]" title="重命名分类"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6Z M14 5l5 5" /></svg></button>
                 {/* Add asset button */}
               <button
                 type="button"
@@ -521,7 +520,7 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                   setExpandedCategories((prev) => new Set(prev).add(cat.id));
                   setNewAssetName('');
                 }}
-                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded p-1 text-slate-500 transition-colors hover:text-blue-600 lg:min-h-0 lg:min-w-0"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md p-1 text-[#8a94a6] transition-colors hover:text-[#0d7c73] lg:min-h-0 lg:min-w-0"
                 title={isFreestyle ? '添加材料' : '添加资产'}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -531,16 +530,16 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
             </div>
             </div>
 
-            {renamingCategoryId === cat.id && <div className="mx-4 mb-3 space-y-2">
-              <label className="block text-sm text-slate-700">分类名称<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleRenameCategory(cat.id); if (e.key === 'Escape') setRenamingCategoryId(null); }} className="mt-1 min-h-11 w-full rounded-md border border-slate-300 bg-white px-2 text-slate-900 focus:border-blue-500 focus:outline-none" /></label>
-              <div className="flex justify-end gap-2"><button type="button" onClick={() => setRenamingCategoryId(null)} className="min-h-11 px-3 text-sm text-slate-600">取消</button><button type="button" disabled={!categoryName.trim()} onClick={() => handleRenameCategory(cat.id)} className="min-h-11 px-3 text-sm font-medium text-blue-600 disabled:opacity-50">确定</button></div>
+            {renamingCategoryId === cat.id && <div className="mx-3 my-2 space-y-2 rounded-[12px] border border-[#e3e7ef] bg-[#f8fafc] p-3">
+              <label className="block text-sm text-[#3b4454]">分类名称<input autoFocus value={categoryName} onChange={(e) => setCategoryName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleRenameCategory(cat.id); if (e.key === 'Escape') setRenamingCategoryId(null); }} className="mt-1 min-h-11 w-full rounded-[9px] border border-[#d8dee8] bg-white px-2.5 text-[#1c2230] focus:border-[#0d9488] focus:outline-none" /></label>
+              <div className="flex justify-end gap-2"><button type="button" onClick={() => setRenamingCategoryId(null)} className="min-h-11 rounded-[8px] px-3 text-sm text-[#647084] hover:bg-[#edf1f6]">取消</button><button type="button" disabled={!categoryName.trim()} onClick={() => handleRenameCategory(cat.id)} className="min-h-11 rounded-[8px] px-3 text-sm font-semibold text-[#0b665f] hover:bg-[#e6f6f4] disabled:opacity-45">确定</button></div>
             </div>}
             {/* Expanded: show assets + add input */}
             {isExpanded && (
-              <div className="bg-[#e2e8f0]/45 py-1.5">
+              <div className="py-1.5">
                 {/* Adding input */}
                 {isAdding && (
-                  <div className="border-b border-slate-300/60 py-2 pl-10 pr-3">
+                  <div className="py-1.5 pl-6 pr-3">
                     <input
                       type="text"
                       value={newAssetName}
@@ -558,7 +557,7 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                       placeholder={assessmentCategories && ASSESSMENT_ASSET_EXAMPLES[cat.id]
                         ? `${isFreestyle ? '材料' : '资产'}名称（如：${ASSESSMENT_ASSET_EXAMPLES[cat.id]}）`
                         : isFreestyle ? '材料名称（如：信息安全管理规定）' : '资产名称（如：核心交换机(192.168.1.1)）'}
-                      className="w-full text-sm border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      className="w-full text-sm border border-[#d8dee8] bg-white text-[#1c2230] placeholder:text-[#98a2b3] rounded-[9px] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/15 focus:border-[#0d9488]"
                       autoFocus
                     />
                   </div>
@@ -566,14 +565,17 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
 
                 {/* Asset list */}
                 {catAssets.length === 0 && !isAdding && (
-                  <div className="py-3 pl-10 pr-3">
-                    <p className="text-sm text-slate-500 italic">
+                  <div className="py-2 pl-9 pr-3">
+                    <p className="text-xs text-[#98a2b3]">
                       {isFreestyle ? '暂无材料，点击 + 添加' : '暂无资产，点击 + 添加'}
                     </p>
                   </div>
                 )}
 
-                {catAssets.map((asset) => (
+                {catAssets.map((asset) => {
+                  const requiredTotal = asset.items.filter((i) => i.required).length;
+                  const missingCount = asset.items.filter((i) => i.required && i.images.length === 0).length;
+                  return (
                   <div
                     key={asset.id}
                     data-asset-id={asset.id}
@@ -583,11 +585,11 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                       dispatch({ type: 'SET_ACTIVE_ASSET', payload: asset.id });
                       onSelectAsset?.();
                     }}
-                    className={`group relative ml-7 mr-2.5 my-1 flex cursor-pointer items-center justify-between rounded-r-md border-l-2 px-3 py-2 text-sm transition-colors duration-150 motion-reduce:transition-none before:absolute before:-left-px before:top-1/2 before:h-px before:w-2.5
-                      ${assetDropTarget?.assetId === asset.id ? 'cursor-grabbing bg-white ring-1 ring-blue-300 shadow-[0_2px_8px_rgba(15,23,42,0.12)]' : ''}
+                    className={`group relative ml-5 mr-2.5 my-1 flex cursor-pointer items-center justify-between rounded-[10px] border px-2.5 py-2 text-sm transition-all duration-150 motion-reduce:transition-none
+                      ${assetDropTarget?.assetId === asset.id ? 'cursor-grabbing border-[#96dcd4] bg-white ring-1 ring-[#0d9488]/30 shadow-[0_4px_14px_rgba(15,23,42,0.10)]' : ''}
                       ${asset.id === activeAssetId
-                        ? 'border-blue-600 bg-white font-semibold text-blue-700 shadow-2xs before:bg-blue-600'
-                        : `border-slate-400/70 text-slate-600 before:bg-slate-400/70 hover:text-slate-950 ${assetDropTarget?.assetId === asset.id ? '' : 'hover:bg-white/60'}`
+                        ? 'border-[#bde6e0] bg-[#eef9f7] font-semibold text-[#0b665f] shadow-[0_1px_2px_rgba(13,148,136,0.08)]'
+                        : `border-transparent text-[#556072] hover:text-[#1c2230] ${assetDropTarget?.assetId === asset.id ? '' : 'hover:bg-[#f4f6fa]'}`
                       }`}
                   >
                     {renamingAssetId === asset.id ? (
@@ -600,7 +602,7 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                           if (e.key === 'Enter') handleFinishRename();
                           if (e.key === 'Escape') setRenamingAssetId(null);
                         }}
-                        className="min-w-0 flex-1 text-sm border border-blue-400 bg-white text-slate-900 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="min-w-0 flex-1 text-sm border border-[#0d9488] bg-white text-[#1c2230] rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/15"
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -623,32 +625,38 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                           onKeyDown={(event) => handleAssetSortKeyDown(event, asset.id, cat.id)}
                           onClick={(event) => event.stopPropagation()}
                           onDoubleClick={(event) => event.stopPropagation()}
-                          className="group/handle relative -mx-0.5 flex min-h-11 min-w-11 shrink-0 touch-none cursor-grab items-center justify-center rounded text-slate-400 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 active:cursor-grabbing disabled:cursor-default lg:min-h-0 lg:min-w-0 lg:h-5 lg:w-4.5"
+                          className="group/handle relative -mx-0.5 flex min-h-11 min-w-11 shrink-0 touch-none cursor-grab items-center justify-center rounded text-[#8a94a6] hover:text-[#0d7c73] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] active:cursor-grabbing disabled:cursor-default lg:min-h-0 lg:min-w-0 lg:h-5 lg:w-[18px]"
                         >
-                          <svg className={`h-3.5 w-3.5 ${catAssets.length > 1 ? 'group-hover/handle:opacity-0 group-focus-visible/handle:opacity-0' : ''} ${asset.id === activeAssetId ? 'text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            {isFreestyle ? (
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4h8l2 2v14H6V6l2-2zm1 8h6m-6 4h6" />
-                            ) : renderCategoryIcon(cat.id)}
-                          </svg>
+                          <span
+                            className={`h-2 w-2 rounded-full ${catAssets.length > 1 ? 'group-hover/handle:opacity-0 group-focus-visible/handle:opacity-0' : ''} ${
+                              missingCount > 0
+                                ? 'bg-[#ef4444] shadow-[0_0_0_2.5px_rgba(239,68,68,0.14)]'
+                                : requiredTotal > 0
+                                  ? 'bg-[#10b981] shadow-[0_0_0_2.5px_rgba(16,185,129,0.14)]'
+                                  : 'bg-[#cbd3df]'
+                            }`}
+                            aria-hidden="true"
+                          />
                           {catAssets.length > 1 && <svg className="absolute h-3.5 w-3.5 opacity-0 group-hover/handle:opacity-100 group-focus-visible/handle:opacity-100" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                             <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" /><circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" /><circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
                           </svg>}
                         </button>
-                        <button type="button" className="min-h-11 min-w-0 truncate text-left font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 lg:min-h-0"><span title={asset.name}>{asset.name}</span></button>
-                        {/* Missing required indicator */}
-                        {(() => {
-                          const missingCount = asset.items.filter((i) => i.required && i.images.length === 0).length;
-                          return missingCount > 0 ? (
-                            <span className="text-xs text-red-500 flex-shrink-0" title={`有 ${missingCount} 项必填未上传截图`}>●</span>
-                          ) : null;
-                        })()}
+                        <button type="button" className="min-h-11 min-w-0 truncate text-left font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] lg:min-h-0"><span title={asset.name}>{asset.name}</span></button>
+                        {requiredTotal > 0 && (
+                          <span
+                            className={`ml-auto shrink-0 text-[11px] tabular-nums ${missingCount === 0 ? 'text-[#0d7c73]' : 'text-[#949cad]'}`}
+                            title={missingCount > 0 ? `有 ${missingCount} 项必填未上传截图` : '必填项已齐'}
+                          >
+                            {requiredTotal - missingCount}/{requiredTotal}
+                          </span>
+                        )}
                       </div>
                     )}
                     <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
                       <button
                         type="button"
                         onClick={(e) => handleStartRename(asset.id, asset.name, e)}
-                        className="flex min-h-11 min-w-11 items-center justify-center p-1 text-slate-400 hover:text-blue-600 lg:min-h-0 lg:min-w-0"
+                        className="flex min-h-11 min-w-11 items-center justify-center p-1 text-[#8a94a6] hover:text-[#0d7c73] lg:min-h-0 lg:min-w-0"
                         title="重命名"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -658,7 +666,7 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                       <button
                         type="button"
                         onClick={(e) => handleRemoveAsset(asset.id, asset.name, e)}
-                        className="flex min-h-11 min-w-11 items-center justify-center p-1 text-slate-400 hover:text-red-600 lg:min-h-0 lg:min-w-0"
+                        className="flex min-h-11 min-w-11 items-center justify-center p-1 text-[#8a94a6] hover:text-[#c53030] lg:min-h-0 lg:min-w-0"
                         title="删除"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -667,14 +675,15 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         );
       })}
       </div>
-      <span ref={assetInsertionRef} aria-hidden="true" className="pointer-events-none absolute left-7 right-2.5 z-[1] hidden h-0.5 bg-blue-500" />
+      <span ref={assetInsertionRef} aria-hidden="true" className="pointer-events-none absolute left-5 right-2.5 z-[1] hidden h-0.5 bg-blue-500" />
       {dialog}
       <button
         type="button"
@@ -692,7 +701,7 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
         className="group/resize absolute inset-y-0 right-0 z-10 hidden w-3 translate-x-1/2 cursor-col-resize touch-none border-0 bg-transparent p-0 focus:outline-none lg:block"
       >
         <span
-          className={`pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 ${isResizing ? 'bg-blue-400' : 'bg-transparent group-hover/resize:bg-blue-400 group-focus-visible/resize:bg-blue-400'}`}
+          className={`pointer-events-none absolute inset-y-2 left-1/2 w-0.5 -translate-x-1/2 rounded-full ${isResizing ? 'bg-[#0d9488]' : 'bg-transparent group-hover/resize:bg-[#0d9488]/60 group-focus-visible/resize:bg-[#0d9488]'}`}
           aria-hidden="true"
         />
       </button>

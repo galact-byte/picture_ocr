@@ -272,7 +272,7 @@ const AssessmentCommandDialog: React.FC<AssessmentCommandDialogProps> = ({ isOpe
           </form>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 border-b border-slate-200 px-4 py-3 sm:grid-cols-[1fr_1.7fr_2fr] sm:px-6">
+            <div className="grid grid-cols-2 gap-3 border-b border-[#edf0f5] px-4 py-3 sm:grid-cols-[1fr_1.7fr_2fr] sm:px-6">
               <label className={FIELD_LABEL}>设备类型
                 <select ref={typeRef} disabled={writing} value={family} className={`${FIELD_INPUT} min-h-11`} onChange={e => {
                   const next = commandFamilies.find(f => f.id === e.target.value);
@@ -289,11 +289,14 @@ const AssessmentCommandDialog: React.FC<AssessmentCommandDialogProps> = ({ isOpe
                 <input type="search" disabled={writing} value={query} placeholder="搜索检查项或命令" className={`${FIELD_INPUT} min-h-11`} onChange={e => { setQuery(e.target.value); setGroupId(''); clearCopy(); }} />
               </label>
             </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-200 px-4 py-1 text-sm sm:px-6">
-              <details className="min-w-0 flex-1 open:basis-full sm:open:basis-auto">
-                <summary className="min-h-11 cursor-pointer py-3 text-slate-600">默认平台：{configuredProfileId ? profiles.find(p => p.id === configuredProfileId)?.label : '未设置'}{hasAssetOverride ? '（仅本资产）' : configuredProfileId ? '（分类默认）' : ''}</summary>
-                <p className="mb-2 text-xs leading-5 text-slate-600">将当前所选平台用于明确用途的检查项。分类默认影响本分类已有和新增资产，不覆盖单台设置或手动关联。配置仅保存在本机。</p>
-                {defaultsError && <p role="alert" className="text-red-700">{defaultsError}</p>}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#edf0f5] px-4 py-1 text-sm sm:px-6">
+              <details className="group min-w-0 flex-1 open:basis-full sm:open:basis-auto">
+                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 py-2.5 text-[#556072] transition-colors hover:text-[#1c2230] [&::-webkit-details-marker]:hidden">
+                  <svg className="h-3.5 w-3.5 shrink-0 text-[#8a94a6] transition-transform duration-150 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                  <span>默认平台：{configuredProfileId ? profiles.find(p => p.id === configuredProfileId)?.label : '未设置'}{hasAssetOverride ? '（仅本资产）' : configuredProfileId ? '（分类默认）' : ''}</span>
+                </summary>
+                <p className="mb-2 text-xs leading-5 text-[#647084]">将当前所选平台用于明确用途的检查项。分类默认影响本分类已有和新增资产，不覆盖单台设置或手动关联。配置仅保存在本机。</p>
+                {defaultsError && <p role="alert" className="text-[#c53030]">{defaultsError}</p>}
                 <div className="mb-2 flex flex-wrap gap-2">
                   {canSetCategory && onSetDefault && <button type="button" disabled={writing || !!defaultsError} className={`${BUTTON_SECONDARY} ${ACTION}`} onClick={() => void saveAuxiliary(() => onSetDefault('category', profileId), '已设置分类默认平台。')}>设为分类默认</button>}
                   {onSetDefault && <button type="button" disabled={writing || !!defaultsError} className={`${BUTTON_SECONDARY} ${ACTION}`} onClick={() => void saveAuxiliary(() => onSetDefault('asset', profileId), '已设置本资产平台。')}>仅用于本资产</button>}
@@ -303,9 +306,9 @@ const AssessmentCommandDialog: React.FC<AssessmentCommandDialogProps> = ({ isOpe
               <button type="button" disabled={writing} className={`${BUTTON_SECONDARY} ${ACTION}`} onClick={() => { setManaging(value => !value); clearCopy(); }}>{managing ? '退出管理' : '管理命令库'}</button>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:flex-row sm:overflow-hidden">
-              <nav aria-label="命令检查用途" className="hidden w-48 shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 p-3 sm:block">
-                <p className="px-3 pb-2 text-xs text-slate-500">检查用途</p>
-                {visibleGroups.map(g => <button key={g.id} type="button" disabled={writing} aria-current={selectedGroup?.id === g.id ? 'true' : undefined} onClick={() => { setGroupId(g.id); clearCopy(); }} className={`mb-1 min-h-11 w-full border-l-2 px-3 py-2 text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${selectedGroup?.id === g.id ? 'border-blue-600 bg-blue-50 font-semibold text-blue-700' : 'border-transparent text-slate-700 hover:bg-slate-100'}`}>{g.title}</button>)}
+              <nav aria-label="命令检查用途" className="hidden w-48 shrink-0 overflow-y-auto border-r border-[#edf0f5] bg-[#f8fafc] p-3 sm:block">
+                <p className="px-3 pb-2 text-xs text-[#8a94a6]">检查用途</p>
+                {visibleGroups.map(g => <button key={g.id} type="button" disabled={writing} aria-current={selectedGroup?.id === g.id ? 'true' : undefined} onClick={() => { setGroupId(g.id); clearCopy(); }} className={`mb-1 min-h-11 w-full rounded-[9px] border px-3 py-2 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] ${selectedGroup?.id === g.id ? 'border-[#bde6e0] bg-[#eef9f7] font-semibold text-[#0b665f]' : 'border-transparent text-[#556072] hover:bg-[#edf1f6] hover:text-[#1c2230]'}`}>{g.title}</button>)}
               </nav>
               <section className="min-w-0 flex-1 px-4 py-4 sm:overflow-y-auto sm:px-6">
                 <label className={`${FIELD_LABEL} mb-4 sm:hidden`}>检查用途
@@ -314,46 +317,45 @@ const AssessmentCommandDialog: React.FC<AssessmentCommandDialogProps> = ({ isOpe
                   </select>
                 </label>
                 {(query.trim() ? visibleGroups : selectedGroup ? [selectedGroup] : []).map(selectedGroup => <div key={selectedGroup.id} data-command-group={selectedGroup.id}>
-                  <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row">
+                  <div className="flex flex-col items-start justify-between gap-3 border-b border-[#edf0f5] pb-4 sm:flex-row">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-slate-950">{selectedGroup.title}</h3>
-                      <p className="mt-1 text-sm text-slate-600">执行环境：{selectedGroup.environment}</p>
+                      <h3 className="font-semibold text-[#1c2230]">{selectedGroup.title}</h3>
+                      <p className="mt-1 text-sm text-[#647084]">执行环境：{selectedGroup.environment}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {managing && <button type="button" className={`${BUTTON_SECONDARY} ${ACTION}`} disabled={writing || !!library.error} onClick={() => beginEditor(undefined, selectedGroup.id)}>新增命令</button>}
                       {!query.trim() && !!selectedGroup.snippets.length && <button type="button" className={`${BUTTON_SECONDARY} ${ACTION}`} disabled={copying} onClick={() => void copy(getCommandGroupText(selectedGroup), `${selectedGroup.title}（整个分组）`, selectedGroup.id)}>复制本组</button>}
-                      {copyId === selectedGroup.id && <span role="status" aria-live="polite" className="self-center text-sm text-blue-700">{status}</span>}
+                      {copyId === selectedGroup.id && <span role="status" aria-live="polite" className="self-center text-sm text-[#0d7c73]">{status}</span>}
                     </div>
                   </div>
-                  {selectedGroup.note && <p className="mt-3 text-sm leading-6 text-slate-600">{selectedGroup.note}</p>}
+                  {selectedGroup.note && <p className="mt-3 text-sm leading-6 text-[#647084]">{selectedGroup.note}</p>}
                   {selectedGroup.snippets.map(snippet => <article key={snippet.id} data-command-id={snippet.id} className="mt-2">
                     <div className="flex flex-wrap items-center justify-between gap-x-2">
-                      <h4 className="min-w-0 break-words text-sm font-semibold text-slate-900">{snippet.title}{snippet.id.startsWith('custom-') && <span className="ml-2 text-xs font-normal text-slate-500">自定义</span>}</h4>
+                      <h4 className="min-w-0 break-words text-sm font-semibold text-[#1c2230]">{snippet.title}{snippet.id.startsWith('custom-') && <span className="ml-2 text-xs font-normal text-[#8a94a6]">自定义</span>}</h4>
                       <div className="flex flex-wrap items-center gap-2">
-                        {copyId === snippet.id && <span role="status" aria-live="polite" className="text-sm text-blue-700">{status}</span>}
+                        {copyId === snippet.id && <span role="status" aria-live="polite" className="text-sm text-[#0d7c73]">{status}</span>}
                         {managing && <><button type="button" aria-label={`编辑：${snippet.title}`} disabled={writing || !!library.error} onClick={() => beginEditor(snippet, selectedGroup.id)} className={`${BUTTON_SECONDARY} ${ACTION} !px-3`}>编辑</button>
-                        <button type="button" aria-label={`删除：${snippet.title}`} disabled={writing || !!library.error} onClick={() => requestDelete(snippet, selectedGroup.id)} className={`${BUTTON_SECONDARY} ${ACTION} !px-3 hover:!border-red-300 hover:!text-red-700`}>删除</button></>}
-                        <button type="button" aria-label={`复制：${snippet.title}`} disabled={copying} onClick={() => void copy(snippet.command, snippet.title, snippet.id)} className="min-h-11 px-3 text-sm text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">复制</button>
+                        <button type="button" aria-label={`删除：${snippet.title}`} disabled={writing || !!library.error} onClick={() => requestDelete(snippet, selectedGroup.id)} className={`${BUTTON_SECONDARY} ${ACTION} !px-3 hover:!border-[#f5c6ca] hover:!text-[#c53030]`}>删除</button></>}
+                        <button type="button" aria-label={`复制：${snippet.title}`} disabled={copying} onClick={() => void copy(snippet.command, snippet.title, snippet.id)} className="min-h-11 rounded-[8px] px-3 text-sm font-medium text-[#0d7c73] transition-colors hover:bg-[#e6f6f4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488]">复制</button>
                       </div>
                     </div>
-                    <pre className="overflow-x-auto border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-900" tabIndex={0} aria-label={`${snippet.title}命令`}><code>{snippet.command}</code></pre>
-                    {snippet.note && <p className="mt-2 text-sm leading-6 text-slate-600">{snippet.note}</p>}
-                    {itemId && onToggleLink && <button type="button" data-link-command={snippet.id} aria-pressed={linkedIds.includes(snippet.id)} disabled={writing || !!library.error || !!bindingError} onClick={() => toggleLink(snippet.id, !linkedIds.includes(snippet.id))} className={`${BUTTON_SECONDARY} ${ACTION} mt-2 ${linkedIds.includes(snippet.id) ? '!border-blue-300 !bg-blue-50 !text-blue-700' : ''}`}>
+                    <pre className="overflow-x-auto rounded-[10px] border border-[#e3e7ef] bg-[#f8fafc] p-3 text-sm leading-6 text-[#1c2230]" tabIndex={0} aria-label={`${snippet.title}命令`}><code>{snippet.command}</code></pre>
+                    {snippet.note && <p className="mt-2 text-sm leading-6 text-[#647084]">{snippet.note}</p>}
+                    {itemId && onToggleLink && <button type="button" data-link-command={snippet.id} aria-pressed={linkedIds.includes(snippet.id)} disabled={writing || !!library.error || !!bindingError} onClick={() => toggleLink(snippet.id, !linkedIds.includes(snippet.id))} className={`${BUTTON_SECONDARY} ${ACTION} mt-2 ${linkedIds.includes(snippet.id) ? '!border-[#b8e6e0] !bg-[#eef9f7] !text-[#0b665f]' : ''}`}>
                       {linkedIds.includes(snippet.id) ? '已关联 · 取消关联' : '关联到检查项'}
                     </button>}
                   </article>)}
-                  {!selectedGroup.snippets.length && <p className="py-6 text-sm text-slate-500">本组暂无命令，可在管理模式下新增。</p>}
-                  {selectedGroup.viewingSteps?.length && <div className="mt-4 border border-slate-200 px-3 py-3"><h4 className="text-sm font-semibold text-slate-900">图形界面查看</h4><ul className="mt-2 space-y-2 text-sm leading-6 text-slate-600">{selectedGroup.viewingSteps.map(step => <li key={step}>{step}</li>)}</ul></div>}
+                  {!selectedGroup.snippets.length && <p className="py-6 text-sm text-[#8a94a6]">本组暂无命令，可在管理模式下新增。</p>}
+                  {selectedGroup.viewingSteps?.length && <div className="mt-4 rounded-[10px] border border-[#e3e7ef] bg-[#f8fafc] px-3.5 py-3"><h4 className="text-sm font-semibold text-[#1c2230]">图形界面查看</h4><ul className="mt-2 space-y-2 text-sm leading-6 text-[#556072]">{selectedGroup.viewingSteps.map(step => <li key={step}>{step}</li>)}</ul></div>}
                 </div>)}
-                {!selectedGroup && <div className="py-8 text-center"><p className="text-sm text-slate-600">没有找到匹配的命令。</p><button type="button" onClick={() => { setQuery(''); setGroupId(''); clearCopy(); }} className={`${BUTTON_SECONDARY} ${ACTION} mt-4`}>清空搜索</button></div>}
+                {!selectedGroup && <div className="py-8 text-center"><p className="text-sm text-[#647084]">没有找到匹配的命令。</p><button type="button" onClick={() => { setQuery(''); setGroupId(''); clearCopy(); }} className={`${BUTTON_SECONDARY} ${ACTION} mt-4`}>清空搜索</button></div>}
               </section>
             </div>
           </>
         )}
-        <div className="border-t border-slate-200 px-4 py-3 sm:px-6">
-          <p role="status" aria-live="polite" className={`break-words text-sm ${manualText || status.includes('失败') ? 'text-red-700' : 'text-blue-700'}`}>{writing ? '正在保存，请稍候…' : (copyId ? '' : status) || '命令库在本机保存，所有资产共用；说明文字不参与复制。'}</p>
+        <div className="border-t border-[#edf0f5] bg-[#f8fafc] px-4 py-3 sm:px-6">
+          <p role="status" aria-live="polite" className={`break-words text-sm ${manualText || status.includes('失败') ? 'text-[#c53030]' : 'text-[#0d7c73]'}`}>{writing ? '正在保存，请稍候…' : (copyId ? '' : status) || '命令库在本机保存，所有资产共用；说明文字不参与复制。'}</p>
           {manualText && <div className="mt-2"><textarea ref={manualRef} readOnly value={manualText} aria-label="手动复制文本" rows={3} className={`${FIELD_INPUT} font-mono`} /><button type="button" className={`${BUTTON_SECONDARY} ${ACTION} mt-2`} onClick={() => { manualRef.current?.focus(); manualRef.current?.select(); }}>选中全部命令</button></div>}
-          {!editor && !confirmation && <details className="mt-2 text-xs text-slate-500"><summary className="cursor-pointer py-1">内置命令来源</summary><p className="mt-1 break-words leading-5">{profile.source}</p></details>}
         </div>
       </div>
     </div>, document.body,

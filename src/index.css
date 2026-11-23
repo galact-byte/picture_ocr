@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: #f1f5f9;
+  --color-bg: #f1f3f7;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f8fafc;
-  --color-border: #e2e8f0;
-  --color-text: #0f172a;
-  --color-primary: #1d4ed8;
-  --color-accent: #0f766e;
-  --font-sans: "DM Sans", "IBM Plex Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-mono: "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --color-surface-soft: #f6f8fb;
+  --color-border: #e3e7ef;
+  --color-text: #1c2230;
+  --color-text-muted: #647084;
+  --color-accent: #0d7c73;
+  --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
 }
 
 body {
@@ -24,9 +24,41 @@ body {
   font-size: 16px;
 }
 
+.craft-canvas {
+  background-color: #f1f3f7;
+  background-image: radial-gradient(rgba(15, 23, 42, 0.048) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
 .tabular-nums {
   font-family: var(--font-mono), var(--font-sans);
   font-variant-numeric: tabular-nums;
+}
+
+/* 细腻浅灰滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d0d7e3 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d0d7e3;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #aeb8c9;
 }
 
 @media (prefers-reduced-motion: reduce) {

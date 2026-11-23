@@ -2,10 +2,11 @@ import React, { useRef, useState, useCallback } from 'react';
 import { getImageFilesFromClipboard } from '../utils/imageFiles';
 
 interface UploadZoneProps {
+  compact?: boolean;
   onImageFiles: (files: File[]) => void;
 }
 
-const UploadZone: React.FC<UploadZoneProps> = ({ onImageFiles }) => {
+const UploadZone: React.FC<UploadZoneProps> = ({ compact = false, onImageFiles }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -88,11 +89,12 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onImageFiles }) => {
       tabIndex={0}
       aria-label="上传截图"
       className={`
-        flex h-40 w-40 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 text-center
-        transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+        flex flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-[12px] border-[1.5px] border-dashed p-3 text-center
+        transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#0d9488] focus:ring-offset-2
+        ${compact ? 'h-40 w-40 xl:h-[132px] xl:w-[132px]' : 'h-40 w-40'}
         ${isDragOver
-          ? 'border-blue-400 bg-blue-50 shadow-sm'
-          : 'border-slate-300 bg-slate-50/70 hover:border-blue-300 hover:bg-blue-50/40'
+          ? 'border-[#0d9488] bg-[#edf9f7] shadow-sm'
+          : 'border-[#d3dae6] bg-[#f7f9fc] hover:border-[#78cfc5] hover:bg-[#f2fbf9]'
         }
       `}
     >
@@ -106,7 +108,7 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onImageFiles }) => {
       />
       <svg
         className={`mb-2 h-8 w-8 transition-colors ${
-          isDragOver ? 'text-blue-500' : 'text-slate-400'
+          isDragOver ? 'text-[#0d7c73]' : 'text-[#98a2b3]'
         }`}
         fill="none"
         stroke="currentColor"
@@ -119,14 +121,13 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onImageFiles }) => {
           d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
         />
       </svg>
-      <p className="text-sm font-semibold text-slate-700">
-        {isDragOver ? '松开鼠标上传' : '点击此处后'}
+      <p className="text-sm font-semibold text-[#3b4454]">
+        {isDragOver ? '松开鼠标上传' : '点击选择截图'}
       </p>
       {!isDragOver && (
-        <>
-          <p className="mt-1 text-sm text-slate-600">按 <kbd className="rounded border bg-white px-1 py-0.5 text-xs">Ctrl+V</kbd> 粘贴</p>
-          <p className="mt-2 text-xs text-slate-400">或拖拽上传</p>
-        </>
+        <p className="mt-1.5 text-xs text-[#8a94a6]">
+          拖拽或 <kbd className="rounded border border-[#d8dee8] border-b-2 bg-white px-1.5 py-0.5 text-[11px] font-medium text-[#556072]">Ctrl+V</kbd>
+        </p>
       )}
     </div>
   );

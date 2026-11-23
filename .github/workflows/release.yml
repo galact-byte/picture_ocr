@@ -102,8 +102,10 @@ jobs:
 
           cp -R dist "release/${PACKAGE_NAME}/dist"
           cp README.md "release/${PACKAGE_NAME}/README.md"
-          mkdir -p "release/${PACKAGE_NAME}/docs"
+          mkdir -p "release/${PACKAGE_NAME}/docs/images"
           cp docs/user-guide.md "release/${PACKAGE_NAME}/docs/user-guide.md"
+          cp docs/releasing.md "release/${PACKAGE_NAME}/docs/releasing.md"
+          cp docs/images/workspace.png "release/${PACKAGE_NAME}/docs/images/workspace.png"
           cp LICENSE "release/${PACKAGE_NAME}/LICENSE"
           cp NOTICE "release/${PACKAGE_NAME}/NOTICE"
           cp RELEASE-NOTES.md "release/${PACKAGE_NAME}/RELEASE-NOTES.md"

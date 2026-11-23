@@ -26,6 +26,7 @@ interface ItemCardProps {
   isDragSource?: boolean;
   isDropTarget?: boolean;
   isDropAfter?: boolean;
+  compactGrid?: boolean;
   onSortHandlePointerDown?: (event: React.PointerEvent<HTMLButtonElement>, itemId: string) => void;
 }
 
@@ -45,19 +46,19 @@ const SortingItemCard: React.FC<ItemCardProps> = ({
 }) => (
   <div
     data-item-id={item.id}
-    className={`flex items-center gap-4 rounded-lg border bg-white px-4 py-3 select-none touch-manipulation shadow-2xs ${
-      isDragSource ? 'border-dashed border-slate-300 bg-slate-50 opacity-35' : 'border-slate-200/95'
+    className={`flex items-center gap-4 rounded-[14px] border bg-white px-4 py-3 select-none touch-manipulation shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+      isDragSource ? 'border-dashed border-[#cfd6e2] bg-[#f8fafc] opacity-35' : 'border-[#e3e7ef]'
     }`}
   >
-    <span className="w-8 text-center text-sm font-semibold text-slate-500 tabular-nums" aria-label={`第 ${sortIndex ?? 0} 项`}>
+    <span className="w-8 text-center text-sm font-semibold text-[#8a94a6] tabular-nums" aria-label={`第 ${sortIndex ?? 0} 项`}>
       {sortIndex}
     </span>
-    <span className="min-w-0 flex-1 text-base font-bold leading-6 text-slate-950">{item.label}</span>
+    <span className="min-w-0 flex-1 text-base font-semibold leading-6 text-[#1c2230]">{item.label}</span>
     <button
       type="button"
       onPointerDown={(event) => onSortHandlePointerDown?.(event, item.id)}
       style={{ touchAction: 'none' }}
-      className="min-h-11 min-w-11 cursor-grab touch-none rounded-md border border-slate-300 bg-slate-50 px-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 active:cursor-grabbing"
+      className="min-h-11 min-w-11 cursor-grab touch-none rounded-[10px] border border-[#dce1eb] bg-[#f8fafc] px-3 text-[#556072] focus:outline-none focus:ring-2 focus:ring-[#0d9488] active:cursor-grabbing"
       aria-label={`拖动“${item.label}”调整检查项顺序`}
       title="按住并拖动以调整顺序"
     >
@@ -83,6 +84,7 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
   commandPanel,
   commandCount = 0,
   onManageCommands,
+  compactGrid = false,
 }) => {
   const [commandsExpanded, setCommandsExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -128,25 +130,25 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-lg border bg-white shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition-colors ${
+      className={`relative flex h-full flex-col overflow-hidden rounded-[18px] border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_6px_18px_rgba(15,23,42,0.035)] transition-all ${
         isPasteTarget
-          ? 'border-blue-400 ring-2 ring-blue-100'
-          : 'border-slate-200/95 hover:border-slate-300'
+          ? 'border-[#78cfc5] ring-2 ring-[#0d9488]/12'
+          : 'border-[#e3e7ef] hover:border-[#cfd6e2]'
       }`}
       onClick={() => onSelectPasteTarget?.(item.id)}
     >
       <div
-        className={`absolute left-0 top-0 h-full w-1.5 ${
+        className={`absolute left-0 top-0 h-full w-1 ${
           item.required
             ? item.images.length > 0
-              ? 'bg-emerald-500'
-              : 'bg-red-500'
-            : 'bg-slate-300'
+              ? 'bg-[#10b981]'
+              : 'bg-[#f87171]'
+            : 'bg-[#d8dee8]'
         }`}
         title={item.required ? (item.images.length > 0 ? '必填项（已上传截图）' : '必填项（待上传截图）') : '选填项'}
       />
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-[#f1f5f9]/85 px-4 py-3.5 sm:px-6">
-        <div className="flex min-w-0 flex-1 basis-full items-center gap-2.5 sm:basis-auto">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-[#edf0f5] bg-[#f8fafc] pl-5 pr-4 py-3 sm:pl-5 sm:pr-5">
+        <div className="flex min-w-0 flex-1 basis-full items-center gap-2 sm:basis-auto">
           <div className="min-w-0 flex-1">
             {editing ? (
               <input
@@ -158,15 +160,30 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
                   if (event.key === 'Enter') handleFinishEdit();
                   if (event.key === 'Escape') setEditing(false);
                 }}
-                className="w-full rounded-md border border-blue-400 bg-white px-2.5 py-1 text-base focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-[9px] border border-[#0d9488] bg-white px-2.5 py-1 text-base text-[#1c2230] focus:outline-none focus:ring-2 focus:ring-[#0d9488]/15"
                 autoFocus
               />
             ) : (
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-base font-bold leading-6 text-slate-950">{item.label}</span>
-                {commandPanel && <button type="button" aria-expanded={commandsExpanded} aria-controls={`item-commands-${item.id}`} onClick={event => { event.stopPropagation(); event.currentTarget.focus(); if (!commandCount) onManageCommands?.(); else setCommandsExpanded(expanded => !expanded); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-normal text-slate-600 transition-colors hover:bg-slate-200/60 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${
+                    item.required
+                      ? item.images.length > 0
+                        ? 'bg-[#10b981] shadow-[0_0_0_2.5px_rgba(16,185,129,0.14)]'
+                        : 'bg-[#ef4444] shadow-[0_0_0_2.5px_rgba(239,68,68,0.13)]'
+                      : 'bg-[#cbd3df]'
+                  }`}
+                  aria-hidden="true"
+                />
+                <span className="text-[15px] font-semibold leading-6 text-[#1c2230]">{item.label}</span>
+                {commandPanel && <button type="button" aria-expanded={commandsExpanded} aria-controls={`item-commands-${item.id}`} onClick={event => { event.stopPropagation(); event.currentTarget.focus(); if (!commandCount) onManageCommands?.(); else setCommandsExpanded(expanded => !expanded); }} className="inline-flex min-h-11 items-center gap-1 rounded-[8px] px-2 text-xs font-medium text-[#647084] transition-colors hover:bg-[#edf1f6] hover:text-[#1c2230] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0d9488] lg:min-h-8">
                   <span>命令{commandCount > 0 ? ` (${commandCount})` : ''}</span><span aria-hidden="true">{commandsExpanded ? '▴' : '▾'}</span>
                 </button>}
+                {isPasteTarget && (
+                  <span className="inline-flex items-center rounded-full border border-[#b8e6e0] bg-[#edf9f7] px-2.5 py-0.5 text-xs font-medium text-[#0b665f]">
+                    当前粘贴目标：Ctrl+V
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -178,10 +195,12 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
               event.stopPropagation();
               onToggleRequired(item.id);
             }}
-            className={`inline-flex min-h-11 items-center rounded-md border px-3 py-1 text-sm transition-colors ${
+            className={`inline-flex min-h-11 items-center rounded-[8px] border px-2.5 py-1 text-xs font-semibold transition-colors lg:min-h-8 ${
               item.required
-                ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
-                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
+                ? item.images.length > 0
+                  ? 'border-[#c4eae5] bg-[#eef9f7] text-[#0b665f] hover:bg-[#dff4f1]'
+                  : 'border-[#f5c6ca] bg-[#fff5f5] text-[#c53030] hover:bg-[#fdecec]'
+                : 'border-[#e3e7ef] bg-white text-[#8a94a6] hover:bg-[#f4f6fa] hover:text-[#475266]'
             }`}
             title={item.required ? '点击设为选填' : '点击设为必填'}
             aria-pressed={item.required}
@@ -194,7 +213,7 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
               event.stopPropagation();
               handleStartEdit();
             }}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-200/60 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-[8px] text-[#8a94a6] transition-colors hover:bg-[#edf1f6] hover:text-[#1c2230] focus:outline-none focus:ring-2 focus:ring-[#0d9488] lg:min-h-8 lg:min-w-8"
             title="重命名"
             aria-label="重命名检查项"
           >
@@ -214,7 +233,7 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
               });
               if (confirmed) onRemove(item.id);
             }}
-            className="flex min-h-11 min-w-11 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-[8px] text-[#8a94a6] transition-colors hover:bg-[#fff5f5] hover:text-[#c53030] focus:outline-none focus:ring-2 focus:ring-[#c53030] lg:min-h-8 lg:min-w-8"
             title="删除"
             aria-label="删除检查项"
           >
@@ -226,17 +245,13 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
       </div>
 
       {commandPanel && <div id={`item-commands-${item.id}`} hidden={!commandsExpanded}>{commandsExpanded && commandPanel}</div>}
-      <div className="px-4 py-5 sm:px-6">
-        {isPasteTarget && (
-          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
-            当前粘贴目标：按 Ctrl+V 可直接粘贴截图到此检查项
-          </div>
-        )}
-        <div className="flex flex-wrap items-start gap-4">
+      <div className="flex-1 p-4 sm:p-5">
+        <div className={`flex flex-wrap items-start ${compactGrid ? 'gap-3' : 'gap-3.5'}`}>
           {item.images.map((img) => (
             <ImageThumbnail
               key={img.id}
               image={img}
+              compact={compactGrid}
               onRemove={(imageId) => onRemoveImage(assetId, item.id, imageId)}
               onClick={(imageId) => {
                 const index = item.images.findIndex((candidate) => candidate.id === imageId);
@@ -248,7 +263,7 @@ const NormalItemCard: React.FC<ItemCardProps> = ({
               onDrop={(_, targetId) => handleDrop(targetId)}
             />
           ))}
-          <UploadZone onImageFiles={(files) => void handleImageFiles(files)} />
+          <UploadZone compact={compactGrid} onImageFiles={(files) => void handleImageFiles(files)} />
         </div>
       </div>
 

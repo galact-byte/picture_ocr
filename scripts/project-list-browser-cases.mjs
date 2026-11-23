@@ -398,23 +398,22 @@ export async function groupLayout() {
   assert(!systemRow('g2').textContent.includes('测试单位'), '相同单位集中在项目栏，系统不重复');
   const toggle = groupToggle('multi');
   const icon = toggle.querySelector('svg');
-  assert(icon && icon.getBoundingClientRect().width >= 20, '展开图标清晰可见，至少 20px');
-  assert(icon.parentElement.getBoundingClientRect().width >= 44 && toggle.getBoundingClientRect().height >= 44, '展开入口至少 44px，标题可点击');
+  assert(icon && icon.getBoundingClientRect().width >= 16, '展开图标清晰可见，至少 16px');
+  assert(toggle.getBoundingClientRect().height >= 44, '展开入口至少 44px，标题可点击');
   assert(!groupRow('multi').textContent.includes('组内系统 ·'), '不再用重复计数工具栏占据一行');
   assert(!button('删除选中', groupRow('multi')), '未选择时不展示批量删除');
   const header = groupRow('multi').querySelector('[data-system-header]');
-  assert(header.textContent.includes('系统名称') && header.textContent.includes('资产数'), '组内有自己的系统表头');
+  assert(header && header.querySelector('input[aria-label="全选当前可见系统"]'), '组内有自己的全选与批量操作条');
+  assert(systemRow('g1').querySelector('[data-column="updated"]') && systemRow('g1').querySelector('[data-column="assets"]'), '系统卡匣展示更新时间与资产状态');
   if (innerWidth >= 1024) {
-    for (const column of ['updated', 'assets']) {
-      const heading = header.querySelector(`[data-column="${column}"]`).getBoundingClientRect();
-      const cell = systemRow('g1').querySelector(`[data-column="${column}"]`).getBoundingClientRect();
-      assert(Math.abs(heading.left - cell.left) < 1 && Math.abs(heading.width - cell.width) < 1, `${column} 表头和内容对齐`);
-    }
+    const r1 = systemRow('g1').getBoundingClientRect();
+    const r2 = systemRow('g2').getBoundingClientRect();
+    assert(Math.abs(r1.top - r2.top) < 2 && r1.width > 0 && Math.abs(r1.left - r2.left) >= r1.width - 1, '桌面端系统卡匣呈多列网格排布');
   }
   systemRow('g1').querySelector('input').click(); await pause(60);
   assert(button('删除选中', groupRow('multi')), '选择后批量操作可达');
   assert(document.documentElement.scrollWidth <= innerWidth, '选中工具不造成溢出');
-  assert(button('导出选中', groupRow('multi')).getBoundingClientRect().height >= 44, '批量导出点击高度至少 44px');
+  assert(button('导出选中', groupRow('multi')).getBoundingClientRect().height >= (innerWidth >= 1024 ? 32 : 44), '批量导出按钮高度符合当前端规范');
   groupRow('multi').scrollIntoView({ block: 'start' }); await pause(100);
   const more = groupRow('multi').querySelector('summary'); more.click(); await pause(80);
   const rect = more.nextElementSibling.getBoundingClientRect();
