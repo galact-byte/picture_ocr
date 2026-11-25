@@ -2,7 +2,7 @@
   "name": "picture_ocr",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "证据采集工具",
   "author": "galact",
   "repository": {
@@ -40,6 +40,7 @@
     "verify:lan-mobile-picker": "node scripts/verify-lan-mobile-picker.mjs",
     "verify:web-lan-server": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/verify-web-lan-server.ps1",
     "verify:pwa-build": "node scripts/verify-pwa-build.mjs",
+    "verify:app-icons": "node --test scripts/verify-app-icons.mjs",
     "desktop:build": "npm run build && npm run desktop:clean && electron-builder --win --dir",
     "desktop:pack": "npm run build && npm run desktop:clean && electron-builder --win --publish never",
     "desktop:clean": "node -e \"require('fs').rmSync('desktop-dist',{recursive:true,force:true})\""
@@ -75,11 +76,15 @@
       "electron/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "electron/icon.ico"
+    ],
     "extraResources": [
       { "from": "LICENSE", "to": "LICENSE" },
       { "from": "NOTICE", "to": "NOTICE" }
     ],
     "win": {
+      "icon": "electron/icon.ico",
       "artifactName": "${name}-${version}.${ext}",
       "target": [
         {

@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { fileURLToPath } = require('node:url');
@@ -132,7 +133,16 @@ async function stopLanSession() {
   return getLanStatus();
 }
 
+function resolveWindowIconPath() {
+  const localPath = path.join(__dirname, 'icon.ico');
+  const unpackedPath = localPath.replace('app.asar', 'app.asar.unpacked');
+  if (fs.existsSync(unpackedPath)) return unpackedPath;
+  if (fs.existsSync(localPath)) return localPath;
+  return undefined;
+}
+
 function createWindow() {
+  const windowIconPath = resolveWindowIconPath();
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -140,6 +150,7 @@ function createWindow() {
     minHeight: 720,
     title: '证据采集工具',
     backgroundColor: '#f8fafc',
+    ...(windowIconPath ? { icon: windowIconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { useAppState, useDispatch } from '../context/AppContext';
 import { getAssetsForCategory } from '../context/appReducer';
 import { useConfirmDialog } from './ConfirmDialog';
+import AppLogo from './AppLogo';
 import { isAssessmentCategories } from '../utils/preset';
 
 const ASSESSMENT_ASSET_EXAMPLES: Record<string, string> = {
@@ -456,11 +457,7 @@ const Sidebar: React.FC<SidebarProps> = ({ compact = false, onClose, onSelectAss
     >
       <div ref={assetListRef} className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto ${draggingAsset ? 'scroll-auto select-none' : 'scroll-smooth'}`}>
         <div className="flex items-center gap-2.5 border-b border-[#edf0f5] px-4 py-3.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] border border-[#bde6e0] bg-[#e6f6f4] text-[#0d7c73] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]" aria-hidden="true">
-          <svg className="h-[17px] w-[17px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.1} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-        </span>
+        <AppLogo className="h-8 w-8" />
         <p className="text-sm font-bold tracking-[-0.01em] text-[#1c2230]">证据采集平台</p>
         {compact && <button type="button" onClick={onClose} aria-label="关闭分类导航" className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-[10px] text-[#647084] hover:bg-[#edf1f6] hover:text-[#1c2230]">
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
